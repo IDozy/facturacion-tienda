@@ -3,23 +3,35 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
      * Seed the application's database.
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        // Crear usuario administrador para el sistema
+        User::create([
+            'name' => 'Administrador',
+            'email' => 'admin@miempresa.com',
+            'password' => bcrypt('password123'), // Cambiar en producción
+            'email_verified_at' => now(),
         ]);
+
+        $this->command->info('✅ Usuario administrador creado');
+
+        // Ejecutar los seeders del sistema de facturación
+        $this->call([
+            EmpresaSeeder::class,
+            ClienteSeeder::class,
+            ProductoSeeder::class,
+            SerieSeeder::class,
+        ]);
+
+        $this->command->info('🎉 Base de datos poblada correctamente');
+        $this->command->info('📧 Email: admin@miempresa.com');
+        $this->command->info('🔑 Password: password123');
     }
 }
