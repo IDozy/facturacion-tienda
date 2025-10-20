@@ -280,4 +280,48 @@ class ComprobanteController extends Controller
             'total' => round($total, 2),
         ];
     }
+
+
+    /**
+     * Enviar comprobante a SUNAT
+     * POST /api/comprobantes/{id}/enviar-sunat
+     */
+    public function enviarSunat(string $id): JsonResponse
+    {
+        $comprobante = Comprobante::with(['cliente', 'empresa', 'detalles'])->find($id);
+
+        if (!$comprobante) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Comprobante no encontrado'
+            ], 404);
+        }
+
+        if ($comprobante->estado_sunat === 'aceptado') {
+            return response()->json([
+                'success' => false,
+                'message' => 'El comprobante ya fue aceptado por SUNAT'
+            ], 422);
+        }
+
+        try {
+            $service = new \App\Services\FacturacionElectronicaService();
+            $resultado = $service->enviarSunat($comprobante);
+
+            // Recargar comprobante
+            $comprobante->refresh();
+
+            return response()->json([
+                'success' => $resultado['success'],
+                'data' => $comprobante,
+                'message' => $resultado['mensaje']
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al enviar a SUNAT: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

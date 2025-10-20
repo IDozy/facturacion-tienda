@@ -57,4 +57,5 @@ Route::prefix('comprobantes')->group(function () {
     Route::post('/', [ComprobanteController::class, 'store']);
     Route::get('/{id}', [ComprobanteController::class, 'show']);
     Route::post('/{id}/anular', [ComprobanteController::class, 'anular']);
+    Route::post('{id}/enviar-sunat', [ComprobanteController::class, 'enviarSunat']);
 });
