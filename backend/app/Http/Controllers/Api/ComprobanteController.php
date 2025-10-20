@@ -324,4 +324,102 @@ class ComprobanteController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Generar el XML del comprobante y guardarlo en storage/app/comprobantes/xml
+     * POST /api/comprobantes/{id}/generar-xml
+     */
+    public function generarXML(string $id)
+    {
+        $comprobante = Comprobante::with(['cliente', 'empresa', 'detalles'])->find($id);
+
+        if (!$comprobante) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Comprobante no encontrado'
+            ], 404);
+        }
+
+        try {
+            // Instanciar el servicio que genera el XML
+            $service = new \App\Services\FacturacionElectronicaService();
+            $xml = $service->generarXML($comprobante);
+
+            if (!$xml) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al generar el XML'
+                ], 500);
+            }
+
+            // ✅ Nombre del archivo: F001-1.xml, B001-2.xml, etc.
+            $nombreArchivo = "{$comprobante->serie}-{$comprobante->correlativo}.xml";
+
+            // ✅ Guardar archivo físico en storage/app/comprobantes/xml/
+            $ruta = "comprobantes/xml/{$nombreArchivo}";
+            \Illuminate\Support\Facades\Storage::disk('local')->put($ruta, $xml);
+
+            // ✅ Guardar nombre y XML codificado en BD
+            $comprobante->update([
+                'nombre_xml' => "{$comprobante->serie}-{$comprobante->correlativo}",
+                'xml' => base64_encode($xml),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'XML generado correctamente',
+                'archivo' => $nombreArchivo
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al generar XML: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+        /**
+     * Ver o descargar el XML del comprobante
+     * GET /api/comprobantes/{id}/xml
+     */
+    public function verXML(string $id)
+    {
+        $comprobante = Comprobante::find($id);
+
+        if (!$comprobante) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Comprobante no encontrado'
+            ], 404);
+        }
+
+        // Ruta donde se guarda el XML (ajústala según tu estructura)
+        $rutaXml = storage_path("app/comprobantes/xml/{$comprobante->nombre_xml}.xml");
+
+        if (!file_exists($rutaXml)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Archivo XML no encontrado'
+            ], 404);
+        }
+
+        // Opción 1: mostrar el XML en el navegador
+        return response()->file($rutaXml, [
+            'Content-Type' => 'application/xml'
+        ]);
+
+        // Opción 2: si prefieres forzar la descarga, usa esto en su lugar:
+        // return response()->download($rutaXml, "{$comprobante->nombre_xml}.xml");
+    }
+
 }
