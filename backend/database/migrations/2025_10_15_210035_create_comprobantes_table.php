@@ -61,7 +61,10 @@ return new class extends Migration
             // Documento relacionado (para notas de crédito/débito)
             $table->bigInteger('comprobante_relacionado_id')->nullable();
             $table->string('motivo_nota')->nullable(); // Motivo de la nota
-            
+
+            // 🧩 Nuevo campo para guardar el nombre del XML
+            $table->string('nombre_xml')->nullable();
+
             $table->timestamps();
             $table->softDeletes(); // Para "eliminar" sin borrar (anular)
         });
