@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Storage;
 use App\Models\Comprobante;
 use App\Models\Empresa;
 use Greenter\Model\Client\Client;
@@ -78,6 +79,11 @@ class FacturacionElectronicaService
         try {
             // Generar XML
             $xml = $this->generarXML($comprobante);
+
+             // Guardar el XML en el storage
+            $nombreXml = "{$comprobante->nombre_xml}.xml";
+            $pathXml = "comprobantes/xml/{$nombreXml}";
+            \Illuminate\Support\Facades\Storage::put($pathXml, $xml);
 
             // Crear invoice
             $invoice = $this->crearInvoice($comprobante);
