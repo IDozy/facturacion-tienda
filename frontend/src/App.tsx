@@ -1,35 +1,86 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { authService } from './services/auth';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Layout from './components/Layout';
 import './App.css'
 
-function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1 className='text-red-500'>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p className='text-3xl'>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+// Componente para rutas protegidas
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  if (!authService.isAuthenticated()) {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
 }
 
-export default App
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* Ruta pública */}
+        <Route path="/login" element={<Login />} />
+
+        {/* Rutas protegidas */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Dashboard />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/productos"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <div>Productos (próximamente)</div>
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/clientes"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <div>Clientes (próximamente)</div>
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/ventas"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <div>Punto de Venta (próximamente)</div>
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/comprobantes"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <div>Comprobantes (próximamente)</div>
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Ruta por defecto */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;
