@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EmpresaController;
 use App\Http\Controllers\Api\ClienteController;
 use App\Http\Controllers\Api\ProductoController;
@@ -15,6 +16,23 @@ Route::get('/test', function () {
         'timestamp' => now()
     ]);
 });
+
+
+// Rutas de autenticación (públicas)
+Route::prefix('auth')->group(function () {
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/register', [AuthController::class, 'register']);
+    
+    // Rutas protegidas
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/logout', [AuthController::class, 'logout']);
+        Route::get('/me', [AuthController::class, 'me']);
+    });
+});
+
+
+Route::middleware('auth:sanctum')->group(function () {
+    
 
 // Empresa
 Route::prefix('empresa')->group(function () {
@@ -60,4 +78,6 @@ Route::prefix('comprobantes')->group(function () {
     Route::get('/{id}/xml', [ComprobanteController::class, 'verXML']);
     Route::post('/{id}/anular', [ComprobanteController::class, 'anular']);
     Route::post('/{id}/enviar-sunat', [ComprobanteController::class, 'enviarSunat']);
+});
+
 });
