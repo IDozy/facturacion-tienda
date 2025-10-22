@@ -12,8 +12,8 @@ class Comprobante extends Model
     protected $table = 'comprobantes';
 
     protected $fillable = [
-        'empresa_id',
         'cliente_id',
+        'usuario_id',
         'tipo_comprobante',
         'serie',
         'correlativo',
@@ -58,14 +58,14 @@ class Comprobante extends Model
     ];
 
     // Relaciones
-    public function empresa()
-    {
-        return $this->belongsTo(Empresa::class);
-    }
-
     public function cliente()
     {
         return $this->belongsTo(Cliente::class);
+    }
+
+    public function usuario()
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function detalles()
@@ -93,7 +93,7 @@ class Comprobante extends Model
     // Accesores
     public function getNumeroCompletoAttribute()
     {
-        return $this->serie . '-' . $this->correlativo;
+        return $this->serie . '-' . str_pad($this->correlativo, 6, '0', STR_PAD_LEFT);
     }
 
     public function getTipoComprobanteNombreAttribute()

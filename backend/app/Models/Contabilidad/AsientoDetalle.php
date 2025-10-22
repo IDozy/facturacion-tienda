@@ -1,0 +1,13 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class AsientoDetalle extends Model {
+    protected $fillable = ['asiento_id', 'cuenta_id', 'item', 'descripcion', 'debe', 'haber'];
+    protected $casts = ['debe' => 'decimal:2', 'haber' => 'decimal:2'];
+    
+    public function asiento() { return $this->belongsTo(Asiento::class); }
+    public function cuenta() { return $this->belongsTo(PlanCuenta::class, 'cuenta_id'); }
+}

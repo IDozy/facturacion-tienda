@@ -28,7 +28,7 @@ class ComprobanteDetalle extends Model
     ];
 
     protected $casts = [
-        'cantidad' => 'decimal:2',
+        'cantidad' => 'decimal:4',
         'precio_unitario' => 'decimal:2',
         'precio_venta' => 'decimal:2',
         'descuento' => 'decimal:2',
