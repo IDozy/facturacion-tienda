@@ -10,7 +10,7 @@ use Illuminate\Http\JsonResponse;
 class SerieController extends Controller
 {
     /**
-     * Listar todas las series
+     * Listar todas las series activas con su empresa
      * GET /api/series
      */
     public function index(): JsonResponse
@@ -30,11 +30,12 @@ class SerieController extends Controller
 
     /**
      * Obtener series por tipo de comprobante
-     * GET /api/series/tipo/01
+     * GET /api/series/tipo/{tipo}
      */
     public function porTipo(string $tipo): JsonResponse
     {
-        $series = Serie::where('activo', true)
+        $series = Serie::with('empresa')
+            ->where('activo', true)
             ->where('tipo_comprobante', $tipo)
             ->orderBy('serie')
             ->get();
@@ -65,6 +66,84 @@ class SerieController extends Controller
             'success' => true,
             'data' => $serie,
             'message' => 'Serie obtenida correctamente'
+        ]);
+    }
+
+    /**
+     * Crear una nueva serie
+     * POST /api/series
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'tipo_comprobante' => 'required|in:01,03,07,08,09,31',
+            'serie' => 'required|string|unique:series,serie',
+            'descripcion' => 'nullable|string',
+            'por_defecto' => 'sometimes|boolean',
+        ]);
+
+        $validated['correlativo_actual'] = 0;
+        $serie = Serie::create($validated);
+
+        return response()->json([
+            'success' => true,
+            'data' => $serie,
+            'message' => 'Serie creada correctamente'
+        ], 201);
+    }
+
+    /**
+     * Actualizar una serie existente
+     * PUT/PATCH /api/series/{id}
+     */
+    public function update(Request $request, string $id): JsonResponse
+    {
+        $serie = Serie::find($id);
+
+        if (!$serie) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Serie no encontrada'
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'tipo_comprobante' => 'sometimes|in:01,03,07,08,09,31',
+            'serie' => 'sometimes|string|unique:series,serie,' . $id,
+            'descripcion' => 'nullable|string',
+            'por_defecto' => 'sometimes|boolean',
+            'activo' => 'sometimes|boolean',
+        ]);
+
+        $serie->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'data' => $serie,
+            'message' => 'Serie actualizada correctamente'
+        ]);
+    }
+
+    /**
+     * Eliminar (soft delete) una serie
+     * DELETE /api/series/{id}
+     */
+    public function destroy(string $id): JsonResponse
+    {
+        $serie = Serie::find($id);
+
+        if (!$serie) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Serie no encontrada'
+            ], 404);
+        }
+
+        $serie->update(['activo' => false]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Serie eliminada correctamente'
         ]);
     }
 }

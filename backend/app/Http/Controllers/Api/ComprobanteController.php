@@ -21,7 +21,7 @@ class ComprobanteController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Comprobante::with(['cliente', 'empresa'])
+        $query = Comprobante::with(['cliente', 'empresa', 'usuario'])
             ->orderBy('fecha_emision', 'desc')
             ->orderBy('correlativo', 'desc');
 
@@ -57,7 +57,7 @@ class ComprobanteController extends Controller
      */
     public function show(string $id): JsonResponse
     {
-        $comprobante = Comprobante::with(['cliente', 'empresa', 'detalles.producto'])
+        $comprobante = Comprobante::with(['cliente', 'empresa', 'usuario', 'detalles.producto'])
             ->find($id);
 
         if (!$comprobante) {
@@ -80,6 +80,14 @@ class ComprobanteController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        // Verificar autenticación
+        if (!auth()->check()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Usuario no autenticado'
+            ], 401);
+        }
+
         $validated = $request->validate([
             'cliente_id' => 'required|exists:clientes,id',
             'tipo_comprobante' => 'required|string|size:2|in:01,03,07,08',
@@ -129,6 +137,7 @@ class ComprobanteController extends Controller
             $comprobante = Comprobante::create([
                 'empresa_id' => $empresa->id,
                 'cliente_id' => $validated['cliente_id'],
+                'usuario_id' => auth()->id(), // ✅ REGISTRA QUIÉN CREÓ EL COMPROBANTE
                 'tipo_comprobante' => $validated['tipo_comprobante'],
                 'serie' => $serie->serie,
                 'correlativo' => $correlativo,
@@ -184,7 +193,7 @@ class ComprobanteController extends Controller
             DB::commit();
 
             // Cargar relaciones
-            $comprobante->load(['cliente', 'empresa', 'detalles.producto']);
+            $comprobante->load(['cliente', 'empresa', 'usuario', 'detalles.producto']);
 
             return response()->json([
                 'success' => true,
@@ -281,7 +290,6 @@ class ComprobanteController extends Controller
         ];
     }
 
-
     /**
      * Enviar comprobante a SUNAT
      * POST /api/comprobantes/{id}/enviar-sunat
@@ -329,7 +337,7 @@ class ComprobanteController extends Controller
      * Generar el XML del comprobante y guardarlo en storage/app/comprobantes/xml
      * POST /api/comprobantes/{id}/generar-xml
      */
-    public function generarXML(string $id)
+    public function generarXML(string $id): JsonResponse
     {
         $comprobante = Comprobante::with(['cliente', 'empresa', 'detalles'])->find($id);
 
@@ -379,16 +387,7 @@ class ComprobanteController extends Controller
         }
     }
 
-
-
-
-
-
-
-
-
-
-        /**
+    /**
      * Ver o descargar el XML del comprobante
      * GET /api/comprobantes/{id}/xml
      */
@@ -421,5 +420,4 @@ class ComprobanteController extends Controller
         // Opción 2: si prefieres forzar la descarga, usa esto en su lugar:
         // return response()->download($rutaXml, "{$comprobante->nombre_xml}.xml");
     }
-
 }
