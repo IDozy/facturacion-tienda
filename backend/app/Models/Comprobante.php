@@ -14,8 +14,9 @@ class Comprobante extends Model
     protected $table = 'comprobantes';
 
     protected $fillable = [
+        'empresa_id',            // agregado
         'cliente_id',
-        'usuario_id',
+        'usuario_id',            // agregado
         'tipo_comprobante',
         'serie',
         'correlativo',
@@ -43,6 +44,7 @@ class Comprobante extends Model
         'ruta_pdf',
         'comprobante_relacionado_id',
         'motivo_nota',
+        'nombre_xml',            // agregado
     ];
 
     protected $casts = [
@@ -60,6 +62,11 @@ class Comprobante extends Model
     ];
 
     // Relaciones
+    public function empresa()
+    {
+        return $this->belongsTo(Empresa::class);
+    }
+
     public function cliente()
     {
         return $this->belongsTo(Cliente::class);
@@ -83,13 +90,13 @@ class Comprobante extends Model
     public function notasCredito()
     {
         return $this->hasMany(Comprobante::class, 'comprobante_relacionado_id')
-            ->where('tipo_comprobante', '07');
+                    ->where('tipo_comprobante', '07');
     }
 
     public function notasDebito()
     {
         return $this->hasMany(Comprobante::class, 'comprobante_relacionado_id')
-            ->where('tipo_comprobante', '08');
+                    ->where('tipo_comprobante', '08');
     }
 
     // Accesores
@@ -110,38 +117,12 @@ class Comprobante extends Model
         return $tipos[$this->tipo_comprobante] ?? 'Desconocido';
     }
 
-    public function getEsFacturaAttribute()
-    {
-        return $this->tipo_comprobante === '01';
-    }
+    public function getEsFacturaAttribute() { return $this->tipo_comprobante === '01'; }
+    public function getEsBoletaAttribute() { return $this->tipo_comprobante === '03'; }
+    public function getEsNotaCreditoAttribute() { return $this->tipo_comprobante === '07'; }
+    public function getEsNotaDebitoAttribute() { return $this->tipo_comprobante === '08'; }
 
-    public function getEsBoletaAttribute()
-    {
-        return $this->tipo_comprobante === '03';
-    }
-
-    public function getEsNotaCreditoAttribute()
-    {
-        return $this->tipo_comprobante === '07';
-    }
-
-    public function getEsNotaDebitoAttribute()
-    {
-        return $this->tipo_comprobante === '08';
-    }
-
-    public function getAceptadoSunatAttribute()
-    {
-        return $this->estado_sunat === 'aceptado';
-    }
-
-    public function getRechazadoSunatAttribute()
-    {
-        return $this->estado_sunat === 'rechazado';
-    }
-
-    public function getPendienteEnvioAttribute()
-    {
-        return $this->estado_sunat === 'pendiente';
-    }
-}   
+    public function getAceptadoSunatAttribute() { return $this->estado_sunat === 'aceptado'; }
+    public function getRechazadoSunatAttribute() { return $this->estado_sunat === 'rechazado'; }
+    public function getPendienteEnvioAttribute() { return $this->estado_sunat === 'pendiente'; }
+}
