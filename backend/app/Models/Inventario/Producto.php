@@ -5,6 +5,12 @@ namespace App\Models\Inventario;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Models\Inventario\Categoria;
+use App\Models\Inventario\Almacen;
+use App\Models\Inventario\MovimientoStock;
+use App\Models\Compras\CompraDetalle;
+use App\Models\Facturacion\ComprobanteDetalle;
+
 class Producto extends Model {
     use SoftDeletes;
     protected $fillable = ['categoria_id', 'almacen_principal_id', 'codigo', 'codigo_barras', 'descripcion', 'descripcion_larga', 'unidad_medida', 'precio_costo', 'precio_unitario', 'precio_venta', 'tipo_igv', 'porcentaje_igv', 'stock', 'stock_minimo', 'ubicacion', 'imagen', 'stock_por_almacen', 'activo'];

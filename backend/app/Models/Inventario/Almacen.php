@@ -5,6 +5,10 @@ namespace App\Models\Inventario;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Models\Inventario\Producto;
+use App\Models\Inventario\MovimientoStock;
+use App\Models\Comprass\Recepcion;
+
 class Almacen extends Model {
     use SoftDeletes;
     protected $fillable = ['nombre', 'codigo', 'descripcion', 'ubicacion', 'es_principal', 'activo'];

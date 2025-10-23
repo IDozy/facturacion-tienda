@@ -1,10 +1,16 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Compras;
 
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+
+use App\Models\Compras\Compra;
+use App\Models\Inventario\Almacen;
+use App\Models\User;
+use App\Models\Compras\RecepcionDetalle;
+
 
 class Recepcion extends Model {
     use SoftDeletes;

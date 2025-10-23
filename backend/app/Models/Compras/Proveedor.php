@@ -1,9 +1,11 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Compras;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+
+use App\Models\Compras\Compra;
 
 class Proveedor extends Model {
     use SoftDeletes;

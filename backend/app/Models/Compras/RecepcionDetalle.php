@@ -1,7 +1,11 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Compras;
 use Illuminate\Database\Eloquent\Model;
+
+use App\Models\Compras\Recepcion;
+use App\Models\Compras\RecepcionDetalle;
+use App\Models\Inventario\Producto;
 
 class RecepcionDetalle extends Model {
     protected $fillable = ['recepcion_id', 'compra_detalle_id', 'producto_id', 'cantidad_recibida', 'observaciones'];

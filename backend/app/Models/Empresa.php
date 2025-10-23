@@ -1,8 +1,25 @@
 <?php
 // app/Models/Empresa.php
 namespace App\Models;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+
+use App\Models\User;
+use App\Models\Cliente;
+use App\Models\Inventario\Producto;
+use App\Models\Iventario\Almacen;
+use App\Models\Inventario\Categoria;
+use App\Models\Compras\Proveedor;
+use App\Models\Facturacion\Serie;
+use App\Models\Comprobante;
+use App\Models\Compras\Compra;
+use App\Models\Compras\Recepcion;
+use App\Models\Inventario\MovimientoStock;
+use App\Models\Contabilidad\PlanCuenta;
+use App\Models\Contabilidad\Asiento;
+use App\Models\Auditoria;
+
 
 class Empresa extends Model {
     use SoftDeletes;

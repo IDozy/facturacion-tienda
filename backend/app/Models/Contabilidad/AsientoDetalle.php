@@ -1,8 +1,11 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Contabilidad;
 
 use Illuminate\Database\Eloquent\Model;
+
+use App\Models\Contabilidad\Asiento;
+use App\Models\Contabiliad\PlanCuenta;
 
 class AsientoDetalle extends Model {
     protected $fillable = ['asiento_id', 'cuenta_id', 'item', 'descripcion', 'debe', 'haber'];

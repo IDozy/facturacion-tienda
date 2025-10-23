@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Models\Comprobante;
+
 class Cliente extends Model {
     use SoftDeletes;
     protected $fillable = ['tipo_documento', 'numero_documento', 'nombre_razon_social', 'nombre_comercial', 'direccion', 'distrito', 'provincia', 'departamento', 'ubigeo', 'telefono', 'email', 'observaciones', 'activo'];

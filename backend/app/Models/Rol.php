@@ -5,6 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Models\User;
+use App\Models\Permiso;
+
 class Rol extends Model {
     use SoftDeletes;
     protected $fillable = ['nombre', 'descripcion', 'permisos', 'activo'];

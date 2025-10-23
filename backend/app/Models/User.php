@@ -8,6 +8,13 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Models\Rol;
+use App\Models\Comprobante;
+use App\Models\Compras\Compra;
+use App\Models\Inventario\MoviemientoStock;
+use App\Models\Contabilidad\Asiento;
+use App\Models\Auditoria;
+
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes;

@@ -1,8 +1,11 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Contabilidad;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+
+use App\Models\Contabilidad\AsientoDetalle;
 
 class PlanCuenta extends Model {
     use SoftDeletes;
