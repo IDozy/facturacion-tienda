@@ -144,4 +144,4 @@ class Comprobante extends Model
     {
         return $this->estado_sunat === 'pendiente';
     }
-}
+}   
