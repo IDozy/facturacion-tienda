@@ -22,10 +22,7 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $user = User::where('email', $validated['email'])
-            ->where('activo', true)
-            ->with('rol')
-            ->first();
+        $user = User::where('email', $validated['email'])->first();
 
         if (!$user || !Hash::check($validated['password'], $user->password)) {
             throw ValidationException::withMessages([
@@ -33,13 +30,21 @@ class AuthController extends Controller
             ]);
         }
 
+        // Eliminar tokens anteriores
+        $user->tokens()->delete();
+
         // Crear token
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([
             'success' => true,
             'data' => [
-                'user' => $user,
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'rol_id' => $user->rol_id,
+                ],
                 'token' => $token,
             ],
             'message' => 'Login exitoso'
@@ -52,7 +57,7 @@ class AuthController extends Controller
      */
     public function logout(Request $request): JsonResponse
     {
-        auth()->user()->currentAccessToken()->delete();
+        $request->user()->currentAccessToken()->delete();
 
         return response()->json([
             'success' => true,
@@ -66,26 +71,31 @@ class AuthController extends Controller
      */
     public function me(Request $request): JsonResponse
     {
-        $user = $request->user()->load('rol');
+        $user = $request->user();
 
         return response()->json([
             'success' => true,
-            'data' => $user,
+            'data' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'rol_id' => $user->rol_id,
+                'created_at' => $user->created_at,
+            ],
         ]);
     }
 
     /**
      * Actualizar perfil
-     * PUT /api/auth/perfil
+     * PUT /api/auth/profile
      */
-    public function actualizarPerfil(Request $request): JsonResponse
+    public function updateProfile(Request $request): JsonResponse
     {
-        $user = auth()->user();
+        $user = $request->user();
 
         $validated = $request->validate([
-            'nombre' => 'sometimes|string|max:255',
+            'name' => 'sometimes|string|max:255',
             'email' => 'sometimes|email|unique:users,email,' . $user->id,
-            'telefono' => 'nullable|string|max:20',
         ]);
 
         $user->update($validated);
@@ -99,18 +109,18 @@ class AuthController extends Controller
 
     /**
      * Cambiar contraseña
-     * POST /api/auth/cambiar-password
+     * POST /api/auth/change-password
      */
-    public function cambiarPassword(Request $request): JsonResponse
+    public function changePassword(Request $request): JsonResponse
     {
-        $user = auth()->user();
+        $user = $request->user();
 
         $validated = $request->validate([
-            'password_actual' => 'required|string',
-            'password_nueva' => 'required|string|min:8|confirmed',
+            'current_password' => 'required|string',
+            'password' => 'required|string|min:8|confirmed',
         ]);
 
-        if (!Hash::check($validated['password_actual'], $user->password)) {
+        if (!Hash::check($validated['current_password'], $user->password)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Contraseña actual incorrecta'
@@ -118,11 +128,20 @@ class AuthController extends Controller
         }
 
         $user->update([
-            'password' => Hash::make($validated['password_nueva']),
+            'password' => Hash::make($validated['password']),
         ]);
+
+        // Eliminar tokens anteriores
+        $user->tokens()->delete();
+
+        // Crear nuevo token
+        $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([
             'success' => true,
+            'data' => [
+                'token' => $token,
+            ],
             'message' => 'Contraseña actualizada correctamente'
         ]);
     }
@@ -134,29 +153,25 @@ class AuthController extends Controller
     public function register(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'nombre' => 'required|string|max:255',
+            'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8|confirmed',
-            'rol_id' => 'required|exists:roles,id',
-            'numero_documento' => 'nullable|string|unique:users,numero_documento',
-            'tipo_documento' => 'nullable|in:1,4,6,7',
-            'telefono' => 'nullable|string|max:20',
         ]);
 
         $user = User::create([
-            'nombre' => $validated['nombre'],
+            'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-            'rol_id' => $validated['rol_id'],
-            'numero_documento' => $validated['numero_documento'] ?? null,
-            'tipo_documento' => $validated['tipo_documento'] ?? null,
-            'telefono' => $validated['telefono'] ?? null,
-            'activo' => true,
         ]);
+
+        $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([
             'success' => true,
-            'data' => $user->load('rol'),
+            'data' => [
+                'user' => $user,
+                'token' => $token,
+            ],
             'message' => 'Usuario registrado correctamente'
         ], 201);
     }
@@ -167,7 +182,7 @@ class AuthController extends Controller
      */
     public function refresh(Request $request): JsonResponse
     {
-        $user = auth()->user();
+        $user = $request->user();
         
         // Eliminar token actual
         $user->currentAccessToken()->delete();

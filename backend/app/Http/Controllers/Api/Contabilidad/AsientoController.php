@@ -144,4 +144,87 @@ class AsientoController extends Controller
             'message' => 'Asiento anulado correctamente'
         ]);
     }
+
+    public function update(Request $request, string $id): JsonResponse
+{
+    $asiento = Asiento::find($id);
+
+    if (!$asiento) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Asiento no encontrado'
+        ], 404);
+    }
+
+    // Solo permitir editar si está en borrador
+    if ($asiento->estado !== 'borrador') {
+        return response()->json([
+            'success' => false,
+            'message' => 'Solo se pueden editar asientos en estado "borrador"'
+        ], 422);
+    }
+
+    $validated = $request->validate([
+        'descripcion' => 'nullable|string',
+        'detalles' => 'array|min:2',
+        'detalles.*.cuenta_id' => 'required|exists:plan_cuentas,id',
+        'detalles.*.descripcion' => 'required|string',
+        'detalles.*.debe' => 'nullable|numeric|min:0',
+        'detalles.*.haber' => 'nullable|numeric|min:0',
+    ]);
+
+    return DB::transaction(function () use ($asiento, $validated) {
+        $asiento->update([
+            'descripcion' => $validated['descripcion'] ?? $asiento->descripcion,
+        ]);
+
+        if (!empty($validated['detalles'])) {
+            $asiento->detalles()->delete();
+
+            foreach ($validated['detalles'] as $index => $detalle) {
+                AsientoDetalle::create([
+                    'asiento_id' => $asiento->id,
+                    'cuenta_id' => $detalle['cuenta_id'],
+                    'item' => $index + 1,
+                    'descripcion' => $detalle['descripcion'],
+                    'debe' => $detalle['debe'] ?? 0,
+                    'haber' => $detalle['haber'] ?? 0,
+                ]);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Asiento actualizado correctamente',
+            'data' => $asiento->load('detalles')
+        ]);
+    });
+}
+
+public function destroy(string $id): JsonResponse
+{
+    $asiento = Asiento::find($id);
+
+    if (!$asiento) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Asiento no encontrado'
+        ], 404);
+    }
+
+    if ($asiento->estado === 'registrado') {
+        return response()->json([
+            'success' => false,
+            'message' => 'No se puede eliminar un asiento registrado'
+        ], 422);
+    }
+
+    $asiento->delete();
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Asiento eliminado correctamente'
+    ]);
+}
+
 }

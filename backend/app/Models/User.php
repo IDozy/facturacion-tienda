@@ -17,7 +17,7 @@ use App\Models\Auditoria;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
+    use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
         'rol_id',
