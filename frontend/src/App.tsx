@@ -2,8 +2,10 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { authService } from './services/auth';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import EmpresaPage from './pages/Empresa'; // <-- Importa tu nueva página
 import Layout from './components/Layout';
 import './App.css'
+import { UsuariosPage } from './pages/Usuarios';
 
 // Componente para rutas protegidas
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -30,6 +32,16 @@ function App() {
               </Layout>
             </ProtectedRoute>
           }
+        />
+
+        <Route
+          path="/configuracion/empresa"
+          element={ <ProtectedRoute> <Layout> <EmpresaPage /> </Layout> </ProtectedRoute>}
+        />
+
+         <Route
+          path="/configuracion/usuarios"
+          element={ <ProtectedRoute> <Layout> <UsuariosPage/> </Layout> </ProtectedRoute>}
         />
 
         <Route

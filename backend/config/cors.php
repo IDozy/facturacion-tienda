@@ -1,6 +1,7 @@
 <?php
 
 return [
+
     'paths' => [
         'api/*',
         'sanctum/csrf-cookie',
@@ -11,12 +12,13 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
+        // URLs de tu frontend y backend
         'https://solid-space-happiness-v7vwxp5r44wf69qj-5173.app.github.dev',
         'https://solid-space-happiness-v7vwxp5r44wf69qj-8000.app.github.dev',
     ],
 
     'allowed_origins_patterns' => [
-        // Permite todos los subdominios de GitHub Codespaces
+        // 🔥 Permitir cualquier subdominio de GitHub Codespaces
         '/^https:\/\/.*\.app\.github\.dev$/',
     ],
 
@@ -33,9 +35,11 @@ return [
 
     'exposed_headers' => [
         'Authorization',
+        'X-XSRF-TOKEN',
     ],
 
-    'max_age' => 86400, // 24 horas en segundos
+    'max_age' => 0,
 
+    // 🔥 MUY IMPORTANTE: debe estar en TRUE
     'supports_credentials' => true,
 ];

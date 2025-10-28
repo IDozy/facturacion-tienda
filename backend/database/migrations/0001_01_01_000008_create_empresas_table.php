@@ -45,6 +45,7 @@ return new class extends Migration
             // Estado
             $table->boolean('activo')->default(true);
             
+              $table->softDeletes();
             $table->timestamps();
         });
     }

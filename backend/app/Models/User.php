@@ -47,7 +47,7 @@ class User extends Authenticatable
     // Relaciones
     public function rol()
     {
-        return $this->belongsTo(Rol::class);
+        return $this->belongsTo(Rol::class, "rol_id");
     }
 
     public function comprobantes()

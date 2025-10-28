@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Empresa;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Storage;
 
 class EmpresaController extends Controller
 {
@@ -31,12 +32,12 @@ class EmpresaController extends Controller
     }
 
     /**
-     * Actualizar empresa
+     * Actualizar o crear empresa
      * PUT /api/empresa
      */
     public function update(Request $request): JsonResponse
     {
-        $empresa = Empresa::first() ?? new Empresa();
+        $empresa = Empresa::firstOrNew([]);
 
         $validated = $request->validate([
             'ruc' => 'sometimes|string|size:11|unique:empresas,ruc,' . ($empresa->id ?? 'NULL'),
@@ -52,7 +53,17 @@ class EmpresaController extends Controller
             'modo_prueba' => 'sometimes|boolean',
         ]);
 
-        $empresa->update($validated);
+        // Manejo de archivos
+        if ($request->hasFile('logo')) {
+            $validated['logo'] = $request->file('logo')->store('logos', 'public');
+        }
+
+        if ($request->hasFile('certificado_digital')) {
+            $validated['certificado_digital'] = $request->file('certificado_digital')->store('certificados', 'private');
+        }
+
+        $empresa->fill($validated);
+        $empresa->save();
 
         return response()->json([
             'success' => true,

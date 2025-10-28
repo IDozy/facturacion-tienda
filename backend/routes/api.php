@@ -3,14 +3,18 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Auth\AuthController;
+use App\Http\Controllers\Api\Usuarios\UsuarioController;
 use App\Http\Controllers\Api\EmpresaController;
-use App\Http\Controllers\Api\ClienteController;
-use App\Http\Controllers\Api\ProductoController;
+use App\Http\Controllers\Api\Clientes\ClienteController;
+use App\Http\Controllers\Api\Inventario\ProductoController;
 use App\Http\Controllers\Api\SerieController;
-use App\Http\Controllers\Api\ComprobanteController;
-use App\Http\Controllers\Api\DashboardController;
-use App\Http\Controllers\Api\ReporteController;
-use App\Http\Controllers\Api\CategoriaController;
+use App\Http\Controllers\Api\Facturacion\ComprobanteController;
+//use App\Http\Controllers\Api\DashboardController;
+//use App\Http\Controllers\Api\ReporteController;
+use App\Http\Controllers\Api\Inventario\CategoriaController;
+use App\Http\Controllers\Api\Contabilidad\AsientoController;
+use App\Http\Controllers\Api\Usuarios\RolController;
+use App\Http\Controllers\Api\Usuarios\PermisoController;
 
 // Ruta de prueba
 Route::get('/test', function () {
@@ -36,9 +40,43 @@ Route::prefix('auth')->group(function () {
 
 // Rutas protegidas con autenticación
 Route::middleware('auth:sanctum')->group(function () {
-    
-    // Dashboard - Estadísticas generales
-    Route::prefix('dashboard')->group(function () {
+
+    // ===== PERFIL DEL USUARIO AUTENTICADO =====
+    Route::prefix('perfil')->group(function () {
+        Route::get('/', [UsuarioController::class, 'perfil']);
+        Route::put('/', [UsuarioController::class, 'actualizarPerfil']);
+        Route::post('/cambiar-password', [UsuarioController::class, 'cambiarPassword']);
+    });
+
+    // ===== GESTIÓN DE USUARIOS (Solo Admin) =====
+    Route::prefix('usuarios')->middleware('admin')->group(function () {
+        Route::get('/', [UsuarioController::class, 'index']);                          // Listar
+        Route::post('/', [UsuarioController::class, 'store']);                         // Crear
+        Route::get('/{id}', [UsuarioController::class, 'show']);                       // Ver uno
+        Route::put('/{id}', [UsuarioController::class, 'update']);                     // Actualizar
+        Route::delete('/{id}', [UsuarioController::class, 'destroy']);                 // Eliminar (soft delete)
+        Route::post('/{id}/cambiar-password', [UsuarioController::class, 'cambiarPassword']); // Cambiar pass
+    });
+
+    // ===== ROLES (Solo Admin) =====
+    Route::prefix('roles')->middleware('admin')->group(function () {
+        Route::get('/', [RolController::class, 'index']);                      // Listar roles
+        Route::post('/', [RolController::class, 'store']);                     // Crear rol
+        Route::get('/{id}', [RolController::class, 'show']);                   // Ver rol
+        Route::put('/{id}', [RolController::class, 'update']);                 // Actualizar rol
+        Route::delete('/{id}', [RolController::class, 'destroy']);             // Eliminar rol
+        Route::post('/{id}/asignar-permisos', [RolController::class, 'asignarPermisos']); // Asignar permisos
+    });
+
+    // ===== PERMISOS (Solo Admin) =====
+    Route::prefix('permisos')->middleware('admin')->group(function () {
+        Route::get('/', [PermisoController::class, 'index']);                  // Listar permisos
+        Route::post('/', [PermisoController::class, 'store']);                 // Crear permiso
+        Route::get('/modulo/{modulo}', [PermisoController::class, 'porModulo']); // Permisos por módulo
+    });
+
+    // ===== DASHBOARD - Estadísticas generales =====
+   /* Route::prefix('dashboard')->group(function () {
         Route::get('/estadisticas', [DashboardController::class, 'estadisticas']);
         Route::get('/ventas-mes', [DashboardController::class, 'ventasMes']);
         Route::get('/productos-mas-vendidos', [DashboardController::class, 'productosMasVendidos']);
@@ -46,15 +84,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/clientes-frecuentes', [DashboardController::class, 'clientesFrecuentes']);
         Route::get('/productos-bajo-stock', [DashboardController::class, 'productosBajoStock']);
     });
-
-    // Empresa
+    */
+    // ===== EMPRESA =====
     Route::prefix('empresa')->group(function () {
         Route::get('/', [EmpresaController::class, 'index']);
         Route::put('/', [EmpresaController::class, 'update']);
         Route::post('/logo', [EmpresaController::class, 'uploadLogo']);
     });
 
-    // Categorías de productos
+    // ===== CATEGORÍAS DE PRODUCTOS =====
     Route::prefix('categorias')->group(function () {
         Route::get('/', [CategoriaController::class, 'index']);
         Route::post('/', [CategoriaController::class, 'store']);
@@ -63,7 +101,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{id}', [CategoriaController::class, 'destroy']);
     });
 
-    // Clientes
+    // ===== CLIENTES =====
     Route::prefix('clientes')->group(function () {
         Route::get('/', [ClienteController::class, 'index']);
         Route::post('/', [ClienteController::class, 'store']);
@@ -76,7 +114,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{id}/compras', [ClienteController::class, 'compras']);
     });
 
-    // Productos
+    // ===== PRODUCTOS =====
     Route::prefix('productos')->group(function () {
         Route::get('/', [ProductoController::class, 'index']);
         Route::post('/', [ProductoController::class, 'store']);
@@ -90,7 +128,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{id}/imagen', [ProductoController::class, 'uploadImagen']);
     });
 
-    // Series
+    // ===== SERIES =====
     Route::prefix('series')->group(function () {
         Route::get('/', [SerieController::class, 'index']);
         Route::post('/', [SerieController::class, 'store']);
@@ -100,7 +138,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{id}', [SerieController::class, 'destroy']);
     });
 
-    // Comprobantes
+    // ===== COMPROBANTES =====
     Route::prefix('comprobantes')->group(function () {
         Route::get('/', [ComprobanteController::class, 'index']);
         Route::post('/', [ComprobanteController::class, 'store']);
@@ -115,7 +153,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{id}/enviar-email', [ComprobanteController::class, 'enviarEmail']);
     });
 
-    // Reportes
+    // ===== REPORTES =====
+    /*
     Route::prefix('reportes')->group(function () {
         Route::get('/ventas', [ReporteController::class, 'ventas']);
         Route::get('/ventas-detallado', [ReporteController::class, 'ventasDetallado']);
@@ -125,18 +164,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/inventario', [ReporteController::class, 'inventario']);
         Route::post('/exportar-excel', [ReporteController::class, 'exportarExcel']);
     });
+    */
 
-
+    // ===== ASIENTOS CONTABLES =====
     Route::prefix('asientos')->group(function () {
-    Route::get('/', [AsientoController::class, 'index']);
-    Route::post('/', [AsientoController::class, 'store']);
-    Route::get('/{id}', [AsientoController::class, 'show']);
-    Route::put('/{id}', [AsientoController::class, 'update']);
-    Route::delete('/{id}', [AsientoController::class, 'destroy']);
-    Route::post('/{id}/registrar', [AsientoController::class, 'registrar']);
-    Route::post('/{id}/anular', [AsientoController::class, 'anular']);
-});
-
+        Route::get('/', [AsientoController::class, 'index']);
+        Route::post('/', [AsientoController::class, 'store']);
+        Route::get('/{id}', [AsientoController::class, 'show']);
+        Route::put('/{id}', [AsientoController::class, 'update']);
+        Route::delete('/{id}', [AsientoController::class, 'destroy']);
+        Route::post('/{id}/registrar', [AsientoController::class, 'registrar']);
+        Route::post('/{id}/anular', [AsientoController::class, 'anular']);
+    });
 
 });
 
