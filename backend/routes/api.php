@@ -9,8 +9,6 @@ use App\Http\Controllers\Api\Clientes\ClienteController;
 use App\Http\Controllers\Api\Inventario\ProductoController;
 use App\Http\Controllers\Api\SerieController;
 use App\Http\Controllers\Api\Facturacion\ComprobanteController;
-//use App\Http\Controllers\Api\DashboardController;
-//use App\Http\Controllers\Api\ReporteController;
 use App\Http\Controllers\Api\Inventario\CategoriaController;
 use App\Http\Controllers\Api\Contabilidad\AsientoController;
 use App\Http\Controllers\Api\Usuarios\RolController;
@@ -49,42 +47,32 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // ===== GESTIÓN DE USUARIOS (Solo Admin) =====
-    Route::prefix('usuarios')->middleware('admin')->group(function () {
-        Route::get('/', [UsuarioController::class, 'index']);                          // Listar
-        Route::post('/', [UsuarioController::class, 'store']);                         // Crear
-        Route::get('/{id}', [UsuarioController::class, 'show']);                       // Ver uno
-        Route::put('/{id}', [UsuarioController::class, 'update']);                     // Actualizar
-        Route::delete('/{id}', [UsuarioController::class, 'destroy']);                 // Eliminar (soft delete)
-        Route::post('/{id}/cambiar-password', [UsuarioController::class, 'cambiarPassword']); // Cambiar pass
+    Route::middleware('admin')->prefix('usuarios')->group(function () {
+        Route::get('/', [UsuarioController::class, 'index']);
+        Route::post('/', [UsuarioController::class, 'store']);
+        Route::get('/{usuarioId}', [UsuarioController::class, 'show']);
+        Route::put('/{usuarioId}', [UsuarioController::class, 'update']);
+        Route::delete('/{usuarioId}', [UsuarioController::class, 'destroy']);
+        Route::post('/{usuarioId}/cambiar-password', [UsuarioController::class, 'cambiarPassword']);
     });
 
     // ===== ROLES (Solo Admin) =====
-    Route::prefix('roles')->middleware('admin')->group(function () {
-        Route::get('/', [RolController::class, 'index']);                      // Listar roles
-        Route::post('/', [RolController::class, 'store']);                     // Crear rol
-        Route::get('/{id}', [RolController::class, 'show']);                   // Ver rol
-        Route::put('/{id}', [RolController::class, 'update']);                 // Actualizar rol
-        Route::delete('/{id}', [RolController::class, 'destroy']);             // Eliminar rol
-        Route::post('/{id}/asignar-permisos', [RolController::class, 'asignarPermisos']); // Asignar permisos
+    Route::middleware('admin')->prefix('roles')->group(function () {
+        Route::get('/', [RolController::class, 'index']);
+        Route::post('/', [RolController::class, 'store']);
+        Route::get('/{rolId}', [RolController::class, 'show']);
+        Route::put('/{rolId}', [RolController::class, 'update']);
+        Route::delete('/{rolId}', [RolController::class, 'destroy']);
+        Route::post('/{rolId}/asignar-permisos', [RolController::class, 'asignarPermisos']);
     });
 
     // ===== PERMISOS (Solo Admin) =====
-    Route::prefix('permisos')->middleware('admin')->group(function () {
-        Route::get('/', [PermisoController::class, 'index']);                  // Listar permisos
-        Route::post('/', [PermisoController::class, 'store']);                 // Crear permiso
-        Route::get('/modulo/{modulo}', [PermisoController::class, 'porModulo']); // Permisos por módulo
+    Route::middleware('admin')->prefix('permisos')->group(function () {
+        Route::get('/', [PermisoController::class, 'index']);
+        Route::post('/', [PermisoController::class, 'store']);
+        Route::get('/modulo/{modulo}', [PermisoController::class, 'porModulo']);
     });
 
-    // ===== DASHBOARD - Estadísticas generales =====
-   /* Route::prefix('dashboard')->group(function () {
-        Route::get('/estadisticas', [DashboardController::class, 'estadisticas']);
-        Route::get('/ventas-mes', [DashboardController::class, 'ventasMes']);
-        Route::get('/productos-mas-vendidos', [DashboardController::class, 'productosMasVendidos']);
-        Route::get('/ultimas-ventas', [DashboardController::class, 'ultimasVentas']);
-        Route::get('/clientes-frecuentes', [DashboardController::class, 'clientesFrecuentes']);
-        Route::get('/productos-bajo-stock', [DashboardController::class, 'productosBajoStock']);
-    });
-    */
     // ===== EMPRESA =====
     Route::prefix('empresa')->group(function () {
         Route::get('/', [EmpresaController::class, 'index']);
@@ -96,9 +84,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('categorias')->group(function () {
         Route::get('/', [CategoriaController::class, 'index']);
         Route::post('/', [CategoriaController::class, 'store']);
-        Route::get('/{id}', [CategoriaController::class, 'show']);
-        Route::put('/{id}', [CategoriaController::class, 'update']);
-        Route::delete('/{id}', [CategoriaController::class, 'destroy']);
+        Route::get('/{categoriaId}', [CategoriaController::class, 'show']);
+        Route::put('/{categoriaId}', [CategoriaController::class, 'update']);
+        Route::delete('/{categoriaId}', [CategoriaController::class, 'destroy']);
     });
 
     // ===== CLIENTES =====
@@ -107,11 +95,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/', [ClienteController::class, 'store']);
         Route::get('/buscar', [ClienteController::class, 'buscar']);
         Route::get('/exportar', [ClienteController::class, 'exportar']);
-        Route::get('/{id}', [ClienteController::class, 'show']);
-        Route::put('/{id}', [ClienteController::class, 'update']);
-        Route::patch('/{id}', [ClienteController::class, 'update']);
-        Route::delete('/{id}', [ClienteController::class, 'destroy']);
-        Route::get('/{id}/compras', [ClienteController::class, 'compras']);
+        Route::get('/{clienteId}', [ClienteController::class, 'show']);
+        Route::put('/{clienteId}', [ClienteController::class, 'update']);
+        Route::patch('/{clienteId}', [ClienteController::class, 'update']);
+        Route::delete('/{clienteId}', [ClienteController::class, 'destroy']);
+        Route::get('/{clienteId}/compras', [ClienteController::class, 'compras']);
     });
 
     // ===== PRODUCTOS =====
@@ -121,11 +109,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/buscar', [ProductoController::class, 'buscar']);
         Route::get('/bajo-stock', [ProductoController::class, 'bajoStock']);
         Route::get('/exportar', [ProductoController::class, 'exportar']);
-        Route::get('/{id}', [ProductoController::class, 'show']);
-        Route::put('/{id}', [ProductoController::class, 'update']);
-        Route::patch('/{id}', [ProductoController::class, 'update']);
-        Route::delete('/{id}', [ProductoController::class, 'destroy']);
-        Route::post('/{id}/imagen', [ProductoController::class, 'uploadImagen']);
+        Route::get('/{productoId}', [ProductoController::class, 'show']);
+        Route::put('/{productoId}', [ProductoController::class, 'update']);
+        Route::patch('/{productoId}', [ProductoController::class, 'update']);
+        Route::delete('/{productoId}', [ProductoController::class, 'destroy']);
+        Route::post('/{productoId}/imagen', [ProductoController::class, 'uploadImagen']);
     });
 
     // ===== SERIES =====
@@ -133,9 +121,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/', [SerieController::class, 'index']);
         Route::post('/', [SerieController::class, 'store']);
         Route::get('/tipo/{tipo}', [SerieController::class, 'porTipo']);
-        Route::get('/{id}', [SerieController::class, 'show']);
-        Route::put('/{id}', [SerieController::class, 'update']);
-        Route::delete('/{id}', [SerieController::class, 'destroy']);
+        Route::get('/{serieId}', [SerieController::class, 'show']);
+        Route::put('/{serieId}', [SerieController::class, 'update']);
+        Route::delete('/{serieId}', [SerieController::class, 'destroy']);
     });
 
     // ===== COMPROBANTES =====
@@ -143,38 +131,25 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/', [ComprobanteController::class, 'index']);
         Route::post('/', [ComprobanteController::class, 'store']);
         Route::get('/exportar', [ComprobanteController::class, 'exportar']);
-        Route::get('/{id}', [ComprobanteController::class, 'show']);
-        Route::post('/{id}/generar-xml', [ComprobanteController::class, 'generarXML']);
-        Route::get('/{id}/xml', [ComprobanteController::class, 'verXML']);
-        Route::get('/{id}/pdf', [ComprobanteController::class, 'generarPDF']);
-        Route::post('/{id}/anular', [ComprobanteController::class, 'anular']);
-        Route::post('/{id}/enviar-sunat', [ComprobanteController::class, 'enviarSunat']);
-        Route::get('/{id}/consultar-sunat', [ComprobanteController::class, 'consultarSunat']);
-        Route::post('/{id}/enviar-email', [ComprobanteController::class, 'enviarEmail']);
+        Route::get('/{comprobanteId}', [ComprobanteController::class, 'show']);
+        Route::post('/{comprobanteId}/generar-xml', [ComprobanteController::class, 'generarXML']);
+        Route::get('/{comprobanteId}/xml', [ComprobanteController::class, 'verXML']);
+        Route::get('/{comprobanteId}/pdf', [ComprobanteController::class, 'generarPDF']);
+        Route::post('/{comprobanteId}/anular', [ComprobanteController::class, 'anular']);
+        Route::post('/{comprobanteId}/enviar-sunat', [ComprobanteController::class, 'enviarSunat']);
+        Route::get('/{comprobanteId}/consultar-sunat', [ComprobanteController::class, 'consultarSunat']);
+        Route::post('/{comprobanteId}/enviar-email', [ComprobanteController::class, 'enviarEmail']);
     });
-
-    // ===== REPORTES =====
-    /*
-    Route::prefix('reportes')->group(function () {
-        Route::get('/ventas', [ReporteController::class, 'ventas']);
-        Route::get('/ventas-detallado', [ReporteController::class, 'ventasDetallado']);
-        Route::get('/productos', [ReporteController::class, 'productos']);
-        Route::get('/clientes', [ReporteController::class, 'clientes']);
-        Route::get('/comprobantes', [ReporteController::class, 'comprobantes']);
-        Route::get('/inventario', [ReporteController::class, 'inventario']);
-        Route::post('/exportar-excel', [ReporteController::class, 'exportarExcel']);
-    });
-    */
 
     // ===== ASIENTOS CONTABLES =====
     Route::prefix('asientos')->group(function () {
         Route::get('/', [AsientoController::class, 'index']);
         Route::post('/', [AsientoController::class, 'store']);
-        Route::get('/{id}', [AsientoController::class, 'show']);
-        Route::put('/{id}', [AsientoController::class, 'update']);
-        Route::delete('/{id}', [AsientoController::class, 'destroy']);
-        Route::post('/{id}/registrar', [AsientoController::class, 'registrar']);
-        Route::post('/{id}/anular', [AsientoController::class, 'anular']);
+        Route::get('/{asientoId}', [AsientoController::class, 'show']);
+        Route::put('/{asientoId}', [AsientoController::class, 'update']);
+        Route::delete('/{asientoId}', [AsientoController::class, 'destroy']);
+        Route::post('/{asientoId}/registrar', [AsientoController::class, 'registrar']);
+        Route::post('/{asientoId}/anular', [AsientoController::class, 'anular']);
     });
 
 });
