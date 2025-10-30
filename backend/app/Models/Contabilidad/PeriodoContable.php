@@ -1,0 +1,218 @@
+<?php
+
+namespace App\Models\Contabilidad;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use App\Models\Empresa;
+use App\Models\LibroElectronico;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+
+class PeriodoContable extends Model
+{
+    use HasFactory;
+
+    protected $table = 'periodos_contables';
+
+    protected $fillable = [
+        'empresa_id',
+        'mes',
+        'año',
+        'estado',
+        'fecha_inicio',
+        'fecha_fin',
+        'cerrado_por',
+        'cerrado_en',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'mes' => 'integer',
+            'año' => 'integer',
+            'fecha_inicio' => 'date:Y-m-d',
+            'fecha_fin' => 'date:Y-m-d',
+            'cerrado_en' => 'datetime',
+            'estado' => 'string',
+        ];
+    }
+
+    // === MULTI-TENANCY + FECHAS AUTOMÁTICAS ===
+    protected static function booted()
+    {
+        static::creating(function ($p) {
+            $p->empresa_id ??= Auth::user()?->empresa_id;
+            $p->estado ??= 'abierto';
+
+            $p->fecha_inicio = \Carbon\Carbon::create($p->año, $p->mes, 1);
+            $p->fecha_fin = $p->fecha_inicio->copy()->endOfMonth();
+        });
+    }
+
+    // === RELACIONES ===
+    public function empresa()
+    {
+        return $this->belongsTo(Empresa::class);
+    }
+
+    public function asientos()
+    {
+        return $this->hasMany(Asiento::class);
+    }
+
+    public function librosElectronicos()
+    {
+        return $this->hasMany(LibroElectronico::class);
+    }
+
+    public function cerradoPor()
+    {
+        return $this->belongsTo(User::class, 'cerrado_por');
+    }
+
+    // === SCOPES ===
+    public function scopeAbiertos($q)
+    {
+        return $q->where('estado', 'abierto');
+    }
+    public function scopeCerrados($q)
+    {
+        return $q->where('estado', 'cerrado');
+    }
+    public function scopeDelAño($q, $año)
+    {
+        return $q->where('año', $año);
+    }
+    public function scopeActual($q)
+    {
+        return $q->where('fecha_inicio', '<=', now())
+            ->where('fecha_fin', '>=', now());
+    }
+
+    // === ESTADO ===
+    public function estaAbierto(): bool
+    {
+        return $this->estado === 'abierto';
+    }
+    public function estaCerrado(): bool
+    {
+        return $this->estado === 'cerrado';
+    }
+
+    // === CIERRE SEGURO ===
+    public function cerrar(): self
+    {
+        if ($this->estaCerrado()) {
+            throw new \Exception('El período ya está cerrado');
+        }
+
+        $pendientes = Cache::remember(
+            "periodo_{$this->id}_asientos_borrador",
+            300,
+            fn() => $this->asientos()->where('estado', 'borrador')->count()
+        );
+
+        if ($pendientes > 0) {
+            throw new \Exception("Existen {$pendientes} asientos en borrador");
+        }
+
+        $this->generarLibrosElectronicos();
+
+        $this->update([
+            'estado' => 'cerrado',
+            'cerrado_por' => Auth::id(),
+            'cerrado_en' => now(),
+        ]);
+
+        return $this;
+    }
+
+    // === REAPERTURA CON CONTROL ===
+    public function reabrir(): self
+    {
+        if ($this->estaAbierto()) return $this;
+
+        $posterioresCerrados = static::where('empresa_id', $this->empresa_id)
+            ->where(function ($q) {
+                $q->where('año', '>', $this->año)
+                    ->orWhere(function ($q2) {
+                        $q2->where('año', $this->año)
+                            ->where('mes', '>', $this->mes);
+                    });
+            })
+            ->where('estado', 'cerrado')
+            ->exists();
+
+        if ($posterioresCerrados) {
+            throw new \Exception('No se puede reabrir un período con períodos posteriores cerrados');
+        }
+
+        $this->update([
+            'estado' => 'abierto',
+            'cerrado_por' => null,
+            'cerrado_en' => null,
+        ]);
+
+        return $this;
+    }
+
+    // === LIBROS ELECTRÓNICOS ===
+    public function generarLibrosElectronicos(): void
+    {
+        $tipos = [
+            LibroElectronico::LIBRO_VENTAS,
+            LibroElectronico::LIBRO_COMPRAS,
+            LibroElectronico::LIBRO_DIARIO,
+        ];
+
+        foreach ($tipos as $tipo) {
+            LibroElectronico::updateOrCreate(
+                ['periodo_contable_id' => $this->id, 'tipo_libro' => $tipo],
+                ['estado' => 'generado', 'generado_en' => now()]
+            );
+        }
+    }
+
+    // === ACCESSORS ===
+    public function getNombreAttribute(): string
+    {
+        $meses = [
+            1 => 'Enero',
+            2 => 'Febrero',
+            3 => 'Marzo',
+            4 => 'Abril',
+            5 => 'Mayo',
+            6 => 'Junio',
+            7 => 'Julio',
+            8 => 'Agosto',
+            9 => 'Septiembre',
+            10 => 'Octubre',
+            11 => 'Noviembre',
+            12 => 'Diciembre',
+        ];
+        return $meses[$this->mes] . ' ' . $this->año;
+    }
+
+    public function getRangoAttribute(): string
+    {
+        return $this->fecha_inicio->format('d/m/Y') . ' - ' . $this->fecha_fin->format('d/m/Y');
+    }
+
+    public function getEstadoBadgeAttribute(): string
+    {
+        return $this->estaAbierto() ? 'success' : 'secondary';
+    }
+
+    // === ESTADÍSTICAS ===
+    public function cantidadAsientos(): int
+    {
+        return Cache::remember("periodo_{$this->id}_total_asientos", 3600, fn() => $this->asientos()->count());
+    }
+
+    public function esActual(): bool
+    {
+        return now()->between($this->fecha_inicio, $this->fecha_fin);
+    }
+}

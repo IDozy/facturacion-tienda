@@ -4,13 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Crypt;
 
 class RespuestaSunat extends Model
 {
     use HasFactory;
 
+    protected $table = 'respuestas_sunat';
+
     protected $fillable = [
-        'comrobante_id',
+        'comprobante_id',
         'codigo_respuesta',
         'descripcion_respuesta',
         'intento',
@@ -21,51 +24,136 @@ class RespuestaSunat extends Model
     ];
 
     protected $casts = [
+        'intento' => 'integer',
         'fecha_proximo_reintento' => 'datetime',
     ];
 
-    /**
-     * Estado de envío:
-     * - pendiente: aún no se ha enviado a SUNAT
-     * - en_proceso: en cola o en envío
-     * - aceptado: SUNAT aceptó el comprobante
-     * - rechazado: SUNAT lo rechazó
-     * - error: fallo técnico, puede reintentarse
-     */
-    public const ESTADOS = [
-        'pendiente',
-        'en_proceso',
-        'aceptado',
-        'rechazado',
-        'error',
+    protected $hidden = [
+        'cdr',
+        'xml',
     ];
 
-    // Relación 1:1 con Comprobante
+    const MAX_INTENTOS = 3;
+
+    // Mutators para encriptar CDR y XML
+    public function setCdrAttribute($value)
+    {
+        if ($value) {
+            $this->attributes['cdr'] = Crypt::encryptString($value);
+        }
+    }
+
+    public function getCdrAttribute($value)
+    {
+        if ($value) {
+            return Crypt::decryptString($value);
+        }
+        return null;
+    }
+
+    public function setXmlAttribute($value)
+    {
+        if ($value) {
+            $this->attributes['xml'] = Crypt::encryptString($value);
+        }
+    }
+
+    public function getXmlAttribute($value)
+    {
+        if ($value) {
+            return Crypt::decryptString($value);
+        }
+        return null;
+    }
+
+    // Relaciones
     public function comprobante()
     {
-        return $this->belongsTo(Comprobante::class);
+        return $this->belongsTo(Facturacion\Comprobante::class);
     }
 
-    // Marcar intento fallido y programar nuevo reintento
-    public function registrarError(string $descripcion, ?int $minutosReintento = 15): void
+    // Scopes
+    public function scopePendientes($query)
     {
+        return $query->where('estado_envio', 'pendiente');
+    }
+
+    public function scopeAceptados($query)
+    {
+        return $query->where('estado_envio', 'aceptado');
+    }
+
+    public function scopeRechazados($query)
+    {
+        return $query->where('estado_envio', 'rechazado');
+    }
+
+    public function scopeParaReintento($query)
+    {
+        return $query->where('estado_envio', 'pendiente')
+            ->where('intento', '<', self::MAX_INTENTOS)
+            ->where(function ($q) {
+                $q->whereNull('fecha_proximo_reintento')
+                    ->orWhere('fecha_proximo_reintento', '<=', now());
+            });
+    }
+
+    // Métodos
+    public function esAceptado()
+    {
+        return $this->estado_envio === 'aceptado';
+    }
+
+    public function esRechazado()
+    {
+        return $this->estado_envio === 'rechazado';
+    }
+
+    public function esPendiente()
+    {
+        return $this->estado_envio === 'pendiente';
+    }
+
+    public function puedeReintentar()
+    {
+        return $this->estado_envio === 'pendiente' && 
+               $this->intento < self::MAX_INTENTOS;
+    }
+
+    public function programarReintento()
+    {
+        if (!$this->puedeReintentar()) {
+            return false;
+        }
+
+        $minutosEspera = pow(2, $this->intento) * 5; // 5, 10, 20 minutos
+        
         $this->update([
-            'estado_envio' => 'error',
-            'descripcion_respuesta' => $descripcion,
-            'intento' => $this->intento + 1,
-            'fecha_proximo_reintento' => now()->addMinutes($minutosReintento),
+            'fecha_proximo_reintento' => now()->addMinutes($minutosEspera),
         ]);
+
+        return true;
     }
 
-    // Registrar respuesta aceptada
-    public function registrarAceptado(string $codigo, string $descripcion, ?string $cdr = null): void
+    public function marcarComoAceptado($codigoRespuesta, $descripcion, $cdr = null)
     {
         $this->update([
-            'estado_envio' => 'aceptado',
-            'codigo_respuesta' => $codigo,
+            'codigo_respuesta' => $codigoRespuesta,
             'descripcion_respuesta' => $descripcion,
             'cdr' => $cdr,
-            'fecha_proximo_reintento' => null,
+            'estado_envio' => 'aceptado',
+        ]);
+
+        // Actualizar estado del comprobante
+        $this->comprobante->update(['estado' => 'aceptado_sunat']);
+    }
+
+    public function marcarComoRechazado($codigoRespuesta, $descripcion)
+    {
+        $this->update([
+            'codigo_respuesta' => $codigoRespuesta,
+            'descripcion_respuesta' => $descripcion,
+            'estado_envio' => 'rechazado',
         ]);
     }
 }

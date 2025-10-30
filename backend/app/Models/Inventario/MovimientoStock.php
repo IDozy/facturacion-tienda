@@ -9,18 +9,21 @@ class MovimientoStock extends Model
 {
     use HasFactory;
 
+    protected $table = 'movimientos_stock';
+
     protected $fillable = [
         'producto_id',
         'almacen_id',
         'tipo',
         'cantidad',
-        'referencia_tipo', // 'entrada' o 'salida'
+        'costo_unitario',
+        'referencia_tipo',
         'referencia_id',
-        'observacion',
     ];
 
     protected $casts = [
-        'cantidad' => 'decimal:2',
+        'cantidad' => 'decimal:3',
+        'costo_unitario' => 'decimal:2',
     ];
 
     // Relaciones
@@ -34,10 +37,71 @@ class MovimientoStock extends Model
         return $this->belongsTo(Almacen::class);
     }
 
+    // Relación polimórfica
     public function referencia()
     {
         return $this->morphTo();
     }
 
+    // Scopes
+    public function scopeEntradas($query)
+    {
+        return $query->where('tipo', 'entrada');
+    }
 
+    public function scopeSalidas($query)
+    {
+        return $query->where('tipo', 'salida');
+    }
+
+    public function scopeTransferencias($query)
+    {
+        return $query->where('tipo', 'transferencia');
+    }
+
+    public function scopeDelPeriodo($query, $fechaInicio, $fechaFin)
+    {
+        return $query->whereBetween('created_at', [$fechaInicio, $fechaFin]);
+    }
+
+    // Accessors
+    public function getCostoTotalAttribute()
+    {
+        return $this->cantidad * $this->costo_unitario;
+    }
+
+    public function getDescripcionTipoAttribute()
+    {
+        $tipos = [
+            'entrada' => 'Entrada',
+            'salida' => 'Salida',
+            'transferencia' => 'Transferencia',
+        ];
+
+        return $tipos[$this->tipo] ?? $this->tipo;
+    }
+
+    // Métodos
+    public function esEntrada()
+    {
+        return $this->tipo === 'entrada';
+    }
+
+    public function esSalida()
+    {
+        return $this->tipo === 'salida';
+    }
+
+    public function esTransferencia()
+    {
+        return $this->tipo === 'transferencia';
+    }
+
+    public function getDocumentoOrigen()
+    {
+        if ($this->referencia) {
+            return $this->referencia;
+        }
+        return null;
+    }
 }
