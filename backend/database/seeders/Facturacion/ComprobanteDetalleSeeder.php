@@ -1,6 +1,6 @@
 <?php
 
-namespace Database\Seeders;
+namespace Database\Seeders\Facturacion;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;

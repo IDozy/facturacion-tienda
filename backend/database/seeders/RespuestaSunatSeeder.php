@@ -50,61 +50,6 @@ class RespuestaSunatSeeder extends Seeder
                 'updated_at' => Carbon::today()->subDays(2)->setTime(10, 30, 0),
             ],
 
-            // === RESPUESTA PARA COMPROBANTE 4 (Factura F002-01891) - ACEPTADA CON OBSERVACIONES ===
-            [
-                'comprobante_id' => 4,
-                'codigo_respuesta' => '4000',
-                'descripcion_respuesta' => 'El comprobante fue aceptado con observaciones: El tipo de cambio es menor al tipo de cambio de la fecha de emisión publicado por SUNAT',
-                'intento' => 2, // Se aceptó en el segundo intento
-                'fecha_proximo_reintento' => null,
-                'cdr' => $cdrExample,
-                'xml' => $xmlExample,
-                'estado_envio' => 'aceptado',
-                'created_at' => Carbon::today()->subDays(10)->setTime(11, 45, 0),
-                'updated_at' => Carbon::today()->subDays(10)->setTime(11, 50, 0),
-            ],
-
-            // === EJEMPLO DE COMPROBANTE RECHAZADO ===
-            [
-                'comprobante_id' => null, // Comprobante de prueba
-                'codigo_respuesta' => '2017',
-                'descripcion_respuesta' => 'El numero de documento del receptor debe ser RUC',
-                'intento' => 1,
-                'fecha_proximo_reintento' => null,
-                'cdr' => null,
-                'xml' => $xmlExample,
-                'estado_envio' => 'rechazado',
-                'created_at' => Carbon::today()->subDays(7),
-                'updated_at' => Carbon::today()->subDays(7),
-            ],
-
-            // === EJEMPLO DE COMPROBANTE PENDIENTE DE REINTENTO ===
-            [
-                'comprobante_id' => null, // Comprobante de prueba
-                'codigo_respuesta' => '1033',
-                'descripcion_respuesta' => 'El servicio de SUNAT no está disponible temporalmente',
-                'intento' => 2,
-                'fecha_proximo_reintento' => Carbon::now()->addMinutes(10), // Programado para reintentar
-                'cdr' => null,
-                'xml' => $xmlExample,
-                'estado_envio' => 'pendiente',
-                'created_at' => Carbon::today()->subHours(2),
-                'updated_at' => Carbon::now()->subMinutes(30),
-            ],
-
-            // === EJEMPLO DE ERROR DESPUÉS DE 3 INTENTOS ===
-            [
-                'comprobante_id' => null, // Comprobante de prueba
-                'codigo_respuesta' => '2204',
-                'descripcion_respuesta' => 'La Factura Electrónica no está autorizada a ser emitida en el Sistema de Emisión Electrónica SUNAT',
-                'intento' => 3, // Máximo de intentos alcanzado
-                'fecha_proximo_reintento' => null,
-                'cdr' => null,
-                'xml' => $xmlExample,
-                'estado_envio' => 'rechazado',
-                'created_at' => Carbon::today()->subDays(3),
-                'updated_at' => Carbon::today()->subDays(3),
-            ],
         ]);
     }
 }
