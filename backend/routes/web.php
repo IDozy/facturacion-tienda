@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\MedioPagoController;
 use App\Http\Controllers\Api\PagoController;
 use App\Http\Controllers\Api\RespuestaSunatController;
 use App\Http\Controllers\Api\RetencionController;
+use App\Http\Controllers\Api\RolController;
 use App\Http\Controllers\Api\TablaSunatController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
@@ -96,6 +97,10 @@ Route::prefix('api')->middleware(['auth:sanctum'])->group(function () {
     // Perfil de usuario
     Route::get('profile', [UserController::class, 'profile']);
     Route::put('profile', [UserController::class, 'updateProfile']);
+
+
+    Route::get('/roles', [RolController::class, 'index']);
+
 
     // Gestión de usuarios
     Route::apiResource('users', UserController::class);

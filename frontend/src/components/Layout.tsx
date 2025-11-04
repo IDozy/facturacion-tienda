@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import type {ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -62,6 +62,15 @@ const menuConfig = [
       { path: '/contabilidad/asientos', label: 'Asientos', icon: BookOpen },
       { path: '/contabilidad/plan-cuentas', label: 'Plan de Cuentas', icon: Briefcase },
       { path: '/contabilidad/diario', label: 'Diario', icon: FileText },
+    ],
+  },
+  {
+    key: 'inventario',
+    label: 'Inventario',
+    icon: Calculator,
+    items: [
+      { path: '/inventario/productos', label: 'Productos', icon: BookOpen },
+      { path: '/inventario/almacen', label: 'almacenes', icon: Briefcase },
     ],
   },
   {
@@ -143,9 +152,8 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full bg-gray-100 text-black flex flex-col shadow-2xl z-50 transition-all duration-300 ease-in-out ${
-          isSidebarCollapsed ? 'w-20' : 'w-64'
-        } ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
+        className={`fixed top-0 left-0 h-full bg-gray-100 text-black flex flex-col shadow-2xl z-50 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'w-20' : 'w-64'
+          } ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
       >
         {/* Header */}
         <div className="p-6 border-b border-blue-800">
@@ -194,11 +202,10 @@ export default function Layout({ children }: LayoutProps) {
                   <>
                     <button
                       onClick={() => toggleSection(key)}
-                      className={`w-full flex items-center justify-between px-6 py-3 transition-colors ${
-                        isParentActive(items.map((i) => i.path))
+                      className={`w-full flex items-center justify-between px-6 py-3 transition-colors ${isParentActive(items.map((i) => i.path))
                           ? 'bg-blue-100 text-black'
                           : 'text-black hover:bg-blue-100'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center">
                         <Icon className="w-5 h-5 mr-3" />
@@ -258,11 +265,10 @@ export default function Layout({ children }: LayoutProps) {
               <Link
                 key={key}
                 to={items ? items[0].path : path!}
-                className={`flex items-center justify-center px-6 py-3 transition-colors ${
-                  items && isParentActive(items.map((i) => i.path))
+                className={`flex items-center justify-center px-6 py-3 transition-colors ${items && isParentActive(items.map((i) => i.path))
                     ? 'bg-blue-200 text-black'
                     : 'text-black hover:bg-blue-200'
-                }`}
+                  }`}
                 title={label}
               >
                 <Icon className="w-5 h-5" />
@@ -302,9 +308,8 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Contenido principal */}
       <main
-        className={`min-h-screen transition-all duration-300 ${
-          isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'
-        }`}
+        className={`min-h-screen transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'
+          }`}
       >
         {/* Header móvil */}
         <div className="md:hidden bg-white shadow-sm p-4 flex items-center justify-between sticky top-0 z-30">

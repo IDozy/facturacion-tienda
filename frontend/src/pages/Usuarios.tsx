@@ -1,18 +1,17 @@
 // pages/UsuariosPage.tsx
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, AlertCircle, CheckCircle } from 'lucide-react';
+import { Plus, Search, AlertCircle, CheckCircle, Loader } from 'lucide-react';
 import type { CreateUsuarioDTO, Rol, UpdateUsuarioDTO, Usuario } from '@/types/User';
 import { usuarioService } from '@/services/userService';
 import { TablaUsuarios } from '@/components/usuarios/UsuarioTable';
 import { ModalUsuario } from '@/components/usuarios/UsuarioModal';
 
-
-
 export const UsuariosPage: React.FC = () => {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [roles, setRoles] = useState<Rol[]>([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true); // ← Nuevo: para carga inicial
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [search, setSearch] = useState('');
@@ -24,9 +23,18 @@ export const UsuariosPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (error) setTimeout(() => setError(''), 5000);
-    if (success) setTimeout(() => setSuccess(''), 5000);
-  }, [error, success]);
+    if (error) {
+      const timer = setTimeout(() => setError(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => setSuccess(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
 
   const cargarDatos = async () => {
     try {
@@ -37,16 +45,21 @@ export const UsuariosPage: React.FC = () => {
       ]);
       setUsuarios(usuariosData);
       setRoles(rolesData);
+      setError(''); // Limpia errores anteriores si la carga es exitosa
     } catch (err) {
+
       setError(err instanceof Error ? err.message : 'Error al cargar datos');
     } finally {
       setLoading(false);
+      setInitialLoading(false); // ← Marca que la carga inicial terminó
     }
   };
 
   const handleGuardar = async (formData: CreateUsuarioDTO | UpdateUsuarioDTO) => {
     try {
       setLoading(true);
+      setError(''); // Limpia errores anteriores
+
       if (editingUsuario) {
         await usuarioService.actualizarUsuario(editingUsuario.id, formData as UpdateUsuarioDTO);
         setSuccess('Usuario actualizado correctamente');
@@ -54,21 +67,29 @@ export const UsuariosPage: React.FC = () => {
         await usuarioService.crearUsuario(formData as CreateUsuarioDTO);
         setSuccess('Usuario creado exitosamente');
       }
+
       setShowModal(false);
       setEditingUsuario(null);
       await cargarDatos();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar usuario');
+      throw err; // ← Para que el modal también pueda manejar el error
     } finally {
       setLoading(false);
     }
   };
 
   const handleEliminar = async (id: number) => {
-    if (!window.confirm('¿Está seguro de que desea eliminar este usuario?')) return;
+    const usuario = usuarios.find(u => u.id === id);
+    const mensaje = usuario
+      ? `¿Está seguro de que desea eliminar al usuario "${usuario.nombre}"?`
+      : '¿Está seguro de que desea eliminar este usuario?';
+
+    if (!window.confirm(mensaje)) return;
 
     try {
       setLoading(true);
+      setError(''); // Limpia errores anteriores
       await usuarioService.eliminarUsuario(id);
       setSuccess('Usuario eliminado correctamente');
       await cargarDatos();
@@ -82,11 +103,13 @@ export const UsuariosPage: React.FC = () => {
   const handleNuevo = () => {
     setEditingUsuario(null);
     setShowModal(true);
+    setError(''); // Limpia errores al abrir modal
   };
 
   const handleEditar = (usuario: Usuario) => {
     setEditingUsuario(usuario);
     setShowModal(true);
+    setError(''); // Limpia errores al abrir modal
   };
 
   const handleCerrarModal = () => {
@@ -101,6 +124,20 @@ export const UsuariosPage: React.FC = () => {
       u.numero_documento?.includes(search)
   );
 
+  // ← Pantalla de carga inicial
+  if (initialLoading) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <div className="flex items-center justify-center h-64">
+          <div className="flex flex-col items-center gap-3">
+            <Loader className="w-8 h-8 animate-spin text-blue-600" />
+            <p className="text-gray-600">Cargando usuarios...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-8 max-w-7xl mx-auto">
       {/* Header */}
@@ -111,16 +148,28 @@ export const UsuariosPage: React.FC = () => {
 
       {/* Mensajes */}
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
           <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
           <span className="text-red-700">{error}</span>
+          <button
+            onClick={() => setError('')}
+            className="ml-auto text-red-600 hover:text-red-800"
+          >
+            ✕
+          </button>
         </div>
       )}
 
       {success && (
-        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
+        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
           <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
           <span className="text-green-700">{success}</span>
+          <button
+            onClick={() => setSuccess('')}
+            className="ml-auto text-green-600 hover:text-green-800"
+          >
+            ✕
+          </button>
         </div>
       )}
 
@@ -139,12 +188,23 @@ export const UsuariosPage: React.FC = () => {
 
         <button
           onClick={handleNuevo}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition whitespace-nowrap"
+          disabled={loading}
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="w-5 h-5" />
           Nuevo Usuario
         </button>
       </div>
+
+      {/* Contador de resultados */}
+      {search && (
+        <div className="mb-4 text-sm text-gray-600">
+          {filteredUsuarios.length === 0
+            ? 'No se encontraron usuarios'
+            : `${filteredUsuarios.length} usuario${filteredUsuarios.length !== 1 ? 's' : ''} encontrado${filteredUsuarios.length !== 1 ? 's' : ''}`
+          }
+        </div>
+      )}
 
       {/* Tabla */}
       <div className="bg-white rounded-lg shadow overflow-hidden">

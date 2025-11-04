@@ -3,20 +3,27 @@
 // ============ PERMISOS ============
 export interface Permiso {
   id: number;
-  nombre: string;
+  name?: string;           // Spatie usa 'name'
+  nombre?: string;         // Alias para compatibilidad
   descripcion?: string;
-  modulo: string;
+  modulo?: string;
+  guard_name?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 // ============ ROLES ============
 export interface Rol {
   id: number;
-  nombre: string;
+  name?: string;           // Spatie usa 'name'
+  nombre?: string;         // Alias para compatibilidad
   descripcion?: string;
   activo?: boolean;
+  guard_name?: string;
   created_at?: string;
   updated_at?: string;
   permisos?: Permiso[];
+  permissions?: Permiso[]; // Spatie usa 'permissions'
   usuarios_count?: number;
 }
 
@@ -25,20 +32,24 @@ export interface Usuario {
   id: number;
   nombre: string;
   email: string;
-  rol_id: number;
+  rol_id?: number;                              // Ahora opcional
   numero_documento: string;
   tipo_documento: 'DNI' | 'RUC' | 'PASAPORTE';
   telefono: string;
   activo: boolean;
   created_at?: string;
   updated_at?: string;
-  rol?: Rol;
+  rol?: Rol;                                    // Rol único (legacy)
+  roles?: Rol[];                                // Array de roles (Spatie)
+  empresa_id?: number;
+  empresa?: any;
 }
 
 export interface CreateUsuarioDTO {
   nombre: string;
   email: string;
   password: string;
+  password_confirmation?: string; 
   rol_id: number;
   numero_documento: string;
   tipo_documento: 'DNI' | 'RUC' | 'PASAPORTE';
@@ -47,14 +58,14 @@ export interface CreateUsuarioDTO {
 }
 
 export interface UpdateUsuarioDTO {
-  nombre: string;
-  email: string;
+  nombre?: string;
+  email?: string;
   password?: string;
-  rol_id: number;
-  numero_documento: string;
-  tipo_documento: 'DNI' | 'RUC' | 'PASAPORTE';
-  telefono: string;
-  activo: boolean;
+  rol_id?: number;
+  numero_documento?: string;
+  tipo_documento?: 'DNI' | 'RUC' | 'PASAPORTE';
+  telefono?: string;
+  activo?: boolean;
 }
 
 // ============ ROLES (CRUD) ============
@@ -79,6 +90,7 @@ export interface AsignarPermisosDTO {
 export interface UsuariosResponse {
   data: Usuario[];
   message?: string;
+  total?: number;
 }
 
 export interface RolesResponse {
