@@ -25,5 +25,19 @@ class PermissionSeeder extends Seeder
         // Crear rol Administrador y asignar todos los permisos
         $admin = Role::firstOrCreate(['name' => 'Administrador']);
         $admin->givePermissionTo(Permission::all());
+
+        // Crear rol Cajero y asignar permisos específicos
+        $cajero = Role::firstOrCreate(['name' => 'Cajero']);
+        $cajero->givePermissionTo([
+            'ver ventas', 'crear ventas', 'anular ventas',
+            'ver productos'
+        ]);
+
+        // Crear rol Contador y asignar permisos específicos
+        $contador = Role::firstOrCreate(['name' => 'Contador']);
+        $contador->givePermissionTo([
+            'ver compras', 'crear compras',
+            'ver ventas'
+        ]);
     }
 }

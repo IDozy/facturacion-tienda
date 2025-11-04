@@ -32,24 +32,24 @@ class User extends Authenticatable
         'remember_token',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'activo' => 'boolean',
-        ];
-    }
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+        'activo' => 'boolean',
+    ];
+
 
     // === GLOBAL SCOPE MULTI-TENANCY ===
     protected static function booted()
     {
         static::addGlobalScope('empresa', function ($query) {
+            if (app()->runningInConsole()) return; // evita afectar seeders y migraciones
             if (Auth::check() && $empresaId = Auth::user()->empresa_id) {
                 $query->where('empresa_id', $empresaId);
             }
         });
     }
+
 
     // === RELACIONES ===
     public function empresa()
@@ -76,10 +76,13 @@ class User extends Authenticatable
     public function setPasswordAttribute($value)
     {
         if ($value && !Hash::needsRehash($value)) {
+            $this->attributes['password'] = $value;
             return;
         }
+
         $this->attributes['password'] = Hash::make($value);
     }
+
 
     // === ACCESSORS ===
     public function getNombreCompletoAttribute(): string
