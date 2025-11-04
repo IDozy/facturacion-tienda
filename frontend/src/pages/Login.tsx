@@ -1,11 +1,12 @@
-import { useState, FormEvent } from 'react';
+import { useState } from 'react';
+import type {FormEvent} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { authService } from '../services/auth';
 
 export default function Login() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('admin@miempresa.com'); // Pre-llenado para testing
+  const [email, setEmail] = useState('admin@empresademo.com'); // Pre-llenado para testing
   const [password, setPassword] = useState('password123'); // Pre-llenado para testing
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -66,7 +67,7 @@ export default function Login() {
           <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20">
             <p className="text-sm font-semibold mb-2">Credenciales de prueba:</p>
             <p className="text-xs text-white/90 font-mono">
-              Email: admin@miempresa.com
+              Email: admin@empresademo.com
             </p>
             <p className="text-xs text-white/90 font-mono">
               Password: password123
