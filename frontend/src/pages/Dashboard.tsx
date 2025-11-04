@@ -7,6 +7,7 @@ export default function Dashboard() {
     productos: 0,
     clientes: 0,
     ventas: 0,
+    users: 0,
   });
 
   useEffect(() => {
@@ -15,19 +16,39 @@ export default function Dashboard() {
 
   const loadStats = async () => {
     try {
-      const [productosRes, clientesRes, ventasRes] = await Promise.all([
-        api.get('/productos'),
+      const [productosRes, clientesRes, ventasRes, userRes] = await Promise.allSettled([
+        api.get('/inventario/productos'),
         api.get('/clientes'),
-        api.get('/comprobantes'),
+        api.get('/facturacion/comprobantes-estadisticas'),
+        api.get("/users")
       ]);
 
+      // Extrae el total de productos
+      const productosTotal = productosRes.status === 'fulfilled'
+        ? productosRes.value.data.total || 0
+        : 0;
+
+      // Extrae el total de clientes
+      const clientesTotal = clientesRes.status === 'fulfilled'
+        ? clientesRes.value.data.total || 0
+        : 0;
+
+      // Extrae el total de ventas (si el endpoint existe)
+      const ventasTotal = ventasRes.status === 'fulfilled'
+        ? ventasRes.value.data.total_facturado || 0
+        : 0;
+
+      const usersTotal = userRes.status === 'fulfilled' ? userRes.value.data.total || 0 : 0;
+
       setStats({
-        productos: productosRes.data.data.length,
-        clientes: clientesRes.data.data.length,
-        ventas: ventasRes.data.data.data?.length || 0,
+        productos: productosTotal,
+        clientes: clientesTotal,
+        ventas: ventasTotal,
+        users: usersTotal,
       });
+
     } catch (error) {
-      console.error('Error cargando estadísticas:', error);
+      console.error('❌ Error cargando estadísticas:', error);
     }
   };
 
@@ -62,12 +83,24 @@ export default function Dashboard() {
           </div>
         </div>
 
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-500 text-sm">Usarios</p>
+              <p className="text-3xl font-bold text-gray-800">{stats.users}</p>
+            </div>
+            <div className="bg-green-100 p-3 rounded-full">
+              <Users className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
+        </div>
+
         {/* Card Ventas */}
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-sm">Ventas</p>
-              <p className="text-3xl font-bold text-gray-800">{stats.ventas}</p>
+              <p className="text-3xl font-bold text-gray-800">S/. { stats.ventas}</p>
             </div>
             <div className="bg-purple-100 p-3 rounded-full">
               <FileText className="w-6 h-6 text-purple-600" />

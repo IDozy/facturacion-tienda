@@ -1,4 +1,5 @@
-import { ReactNode, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react'
+import type {ReactNode} from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -275,7 +276,7 @@ export default function Layout({ children }: LayoutProps) {
           <div className="border-t border-blue-800">
             <div className="p-4">
               <p className="text-xs text-gray-500 mb-1">Conectado como:</p>
-              <p className="text-blue-600 font-medium truncate">{user?.name || 'Invitado'}</p>
+              <p className="text-blue-600 font-medium truncate">{user?.nombre || 'Invitado'}</p>
               <p className="text-xs text-gray-500 truncate">{user?.email || 'sin correo'}</p>
             </div>
             <button
