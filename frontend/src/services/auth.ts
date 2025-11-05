@@ -12,6 +12,7 @@ export interface User {
   empresa_id: number;
   activo: boolean;
   
+  
 }
 
 interface LoginResponse {

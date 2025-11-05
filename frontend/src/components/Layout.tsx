@@ -209,7 +209,7 @@ export default function Layout({ children }: LayoutProps) {
                     >
                       <div className="flex items-center">
                         <Icon className="w-5 h-5 mr-3" />
-                        <span className="font-medium">{label}</span>
+                        <span className="font-normal">{label}</span>
                       </div>
                       <motion.div
                         animate={{ rotate: openSection === key ? 0 : -90 }}
@@ -254,7 +254,7 @@ export default function Layout({ children }: LayoutProps) {
                     className={`flex items-center px-6 py-3 transition-colors ${isActive(path!)}`}
                   >
                     <Icon className="w-5 h-5 mr-3" />
-                    <span className="font-medium">{label}</span>
+                    <span className="font-normal">{label}</span>
                   </Link>
                 )}
               </div>

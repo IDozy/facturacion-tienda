@@ -43,6 +43,8 @@ export interface Usuario {
   roles?: Rol[];                                // Array de roles (Spatie)
   empresa_id?: number;
   empresa?: any;
+
+  permissions?: Permiso[];
 }
 
 export interface CreateUsuarioDTO {
@@ -61,6 +63,7 @@ export interface UpdateUsuarioDTO {
   nombre?: string;
   email?: string;
   password?: string;
+  password_confirmation?: string; 
   rol_id?: number;
   numero_documento?: string;
   tipo_documento?: 'DNI' | 'RUC' | 'PASAPORTE';
