@@ -42,8 +42,6 @@ export const authService = {
   async login(credentials: LoginCredentials) {
     const { data } = await api.post<LoginResponse>('/login', credentials);
 
-    console.log('📥 Respuesta de login:', data);
-
     if (data.success && data.token) {
       localStorage.setItem('token', data.token);
 
@@ -52,7 +50,6 @@ export const authService = {
         const userProfile = await this.fetchUserProfile();
         if (userProfile) {
           localStorage.setItem('user', JSON.stringify(userProfile));
-          console.log('✅ Usuario con roles guardado:', userProfile);
         } else {
           // Si falla, guardar lo que vino del login
           localStorage.setItem('user', JSON.stringify(data.user));
@@ -71,7 +68,6 @@ export const authService = {
     try {
       // Usa el endpoint de perfil o el endpoint de usuario actual
       const { data } = await api.get<any>('/profile');
-      console.log('👤 Perfil obtenido:', data);
       return data.data || data.user || data;
     } catch (error) {
       console.error('Error obteniendo perfil:', error);
@@ -107,9 +103,7 @@ export const authService = {
   getUser(): Usuario | null {
     const user = localStorage.getItem('user');
     if (!user) return null;
-
     const parsedUser = JSON.parse(user) as Usuario;
-    console.log('🔍 Usuario desde localStorage:', parsedUser);
     return parsedUser;
   },
 
@@ -117,10 +111,7 @@ export const authService = {
 
   getUserRoles(): string[] {
     const user = this.getUser();
-    console.log('🎭 Extrayendo roles de:', user);
-
     if (!user) {
-      console.log('❌ No hay usuario');
       return [];
     }
 
@@ -128,22 +119,15 @@ export const authService = {
     if (user.roles && Array.isArray(user.roles)) {
       const roleNames = user.roles.map((r: any) => {
         const roleName = r.name || r.nombre || '';
-        console.log('  - Rol encontrado:', roleName);
-         return roleName.toLowerCase(); 
+        return roleName.toLowerCase();
       }).filter(Boolean);
-
-      console.log('✅ Roles totales:', roleNames);
       return roleNames;
     }
-
-    console.log('❌ No se encontraron roles en el usuario');
     return [];
   },
 
   hasRole(role: string | string[]): boolean {
     const userRoles = this.getUserRoles();
-    console.log(`🔍 Verificando rol "${role}", usuario tiene:`, userRoles);
-
     if (Array.isArray(role)) {
       return role.some(r => userRoles.includes(r));
     }
@@ -153,7 +137,6 @@ export const authService = {
   hasAnyRole(roles: string[]): boolean {
     const userRoles = this.getUserRoles();
     const hasAny = roles.some(role => userRoles.includes(role));
-    console.log(`🔍 hasAnyRole(${roles.join(', ')})? ${hasAny}`);
     return hasAny;
   },
 

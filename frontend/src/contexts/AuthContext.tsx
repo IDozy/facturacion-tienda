@@ -32,19 +32,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const token = localStorage.getItem('token');
         const userData = localStorage.getItem('user');
-        
+
         if (token && userData) {
           const parsedUser = JSON.parse(userData);
           setUser(parsedUser);
-          
+
           // Extraer roles del usuario
           const userRoles = parsedUser.roles?.map((r: Rol) => r.name || r.nombre) || [];
           setRoles(userRoles);
-          
+
           // Extraer permisos si existen
           const userPermissions = parsedUser.permissions?.map((p: any) => p.name) || [];
           setPermissions(userPermissions);
-          console.log(userPermissions ," permisos de usuario");
         }
       } catch (error) {
         console.error('Error loading user:', error);
@@ -84,20 +83,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Login
   const login = (token: string, userData: Usuario) => {
-  localStorage.setItem('token', token);
-  localStorage.setItem('user', JSON.stringify(userData));
-  setUser(userData);
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
 
-  // 👇 roles
-  const userRoles = (userData.roles?.map((r: Rol) => r.name || r.nombre) || [])
-    .filter((r): r is string => r !== undefined);
-  setRoles(userRoles);
+    // 👇 roles
+    const userRoles = (userData.roles?.map((r: Rol) => r.name || r.nombre) || [])
+      .filter((r): r is string => r !== undefined);
+    setRoles(userRoles);
 
-  // 👇 permisos
-  const userPermissions = (userData.permissions?.map((p: any) => p.name) || [])
-    .filter((p): p is string => p !== undefined);
-  setPermissions(userPermissions);
-};
+    // 👇 permisos
+    const userPermissions = (userData.permissions?.map((p: any) => p.name) || [])
+      .filter((p): p is string => p !== undefined);
+    setPermissions(userPermissions);
+  };
 
 
   // Logout
