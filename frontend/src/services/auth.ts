@@ -33,10 +33,7 @@ interface LoginResponse {
   message?: string;
 }
 
-interface UserResponse {
-  success: boolean;
-  user: User;
-}
+
 
 export const authService = {
   async login(credentials: LoginCredentials) {

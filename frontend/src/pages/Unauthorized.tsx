@@ -1,5 +1,4 @@
 // pages/Unauthorized.tsx
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldX, ArrowLeft, Home } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
