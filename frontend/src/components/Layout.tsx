@@ -65,7 +65,7 @@ const menuConfig: MenuItem[] = [
     key: 'ventas',
     label: 'Ventas',
     icon: ShoppingCart,
-    roles: ['Admin', 'Administrador',"administrador", 'vendedor', 'cajero'],
+    roles: ['admin',"administrador", 'vendedor', 'cajero'],
     items: [
       { path: '/ventas/nueva', label: 'Nueva Venta', icon: FileText, roles: ['admin', 'administrador', 'vendedor', 'cajero'] },
       { path: '/ventas/comprobantes', label: 'Comprobantes', icon: ClipboardList, roles: ['admin', 'administrador', 'vendedor', 'cajero'] },
@@ -78,7 +78,7 @@ const menuConfig: MenuItem[] = [
     key: 'contabilidad',
     label: 'Contabilidad',
     icon: Calculator,
-    roles: ['admin', 'Administrador', 'contador'],
+    roles: ['admin', 'administrador', 'contador'],
     items: [
       { path: '/contabilidad/asientos', label: 'Asientos', icon: BookOpen, roles: ['admin', 'administrador', 'contador'] },
       { path: '/contabilidad/plan-cuentas', label: 'Plan de Cuentas', icon: Briefcase, roles: ['admin', 'administrador', 'contador'] },
@@ -89,7 +89,7 @@ const menuConfig: MenuItem[] = [
     key: 'inventario',
     label: 'Inventario',
     icon: Package,
-    roles: ['admin', 'Administrador', 'vendedor'],
+    roles: ['admin', 'administrador', 'vendedor'],
     items: [
       { path: '/inventario/productos', label: 'Productos', icon: BookOpen, roles: ['admin', 'administrador', 'vendedor'] },
       { path: '/inventario/almacen', label: 'Almacenes', icon: Briefcase, roles: ['admin', 'administrador'] },
@@ -99,7 +99,7 @@ const menuConfig: MenuItem[] = [
     key: 'reportes',
     label: 'Reportes',
     icon: FileBarChart,
-    roles: ['admin', 'Administrador', 'contador'],
+    roles: ['admin', 'administrador', 'contador'],
     items: [
       { path: '/reportes/ventas', label: 'Ventas', icon: BarChart3, roles: ['admin', 'administrador', 'contador'] },
       { path: '/reportes/inventario', label: 'Inventario', icon: LineChart, roles: ['admin', 'administrador', 'contador'] },
@@ -111,7 +111,7 @@ const menuConfig: MenuItem[] = [
     key: 'configuracion',
     label: 'Configuración',
     icon: Settings,
-    roles: ['admin', 'Administrador'],
+    roles: ['admin', 'administrador'],
     items: [
       { path: '/configuracion/empresa', label: 'Empresa', icon: Building2, roles: ['admin', 'administrador'] },
       { path: '/configuracion/usuarios', label: 'Usuarios', icon: UserCog, roles: ['admin', 'administrador'] },

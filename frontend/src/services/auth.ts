@@ -129,7 +129,7 @@ export const authService = {
       const roleNames = user.roles.map((r: any) => {
         const roleName = r.name || r.nombre || '';
         console.log('  - Rol encontrado:', roleName);
-        return roleName;
+         return roleName.toLowerCase(); 
       }).filter(Boolean);
 
       console.log('✅ Roles totales:', roleNames);
