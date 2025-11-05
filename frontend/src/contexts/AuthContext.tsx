@@ -44,6 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Extraer permisos si existen
           const userPermissions = parsedUser.permissions?.map((p: any) => p.name) || [];
           setPermissions(userPermissions);
+          console.log(userPermissions ," permisos de usuario");
         }
       } catch (error) {
         console.error('Error loading user:', error);
