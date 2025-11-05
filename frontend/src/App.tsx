@@ -1,29 +1,22 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { authService } from './services/auth';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import EmpresaPage from './pages/Empresa'; // <-- Importa tu nueva página
+import EmpresaPage from './pages/Empresa';
 import Layout from './components/Layout';
 import './App.css'
 import { UsuariosPage } from './pages/Usuarios';
 import { AuthProvider } from './contexts/AuthContext';
-
-// Componente para rutas protegidas
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  if (!authService.isAuthenticated()) {
-    return <Navigate to="/login" replace />;
-  }
-  return <>{children}</>;
-}
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import Unauthorized from './pages/Unauthorized';
 
 function App() {
   return (
     <AuthProvider>
-
       <BrowserRouter>
         <Routes>
-          {/* Ruta pública */}
+          {/* Rutas públicas */}
           <Route path="/login" element={<Login />} />
+          <Route path="/unauthorized" element={<Unauthorized />} />
 
           {/* Rutas protegidas */}
           <Route
@@ -37,20 +30,34 @@ function App() {
             }
           />
 
+          {/* Rutas de configuración - usando minúsculas normalizadas */}
           <Route
             path="/configuracion/empresa"
-            element={<ProtectedRoute> <Layout> <EmpresaPage /> </Layout> </ProtectedRoute>}
+            element={
+              <ProtectedRoute roles={['admin', 'administrador']}>
+                <Layout>
+                  <EmpresaPage />
+                </Layout>
+              </ProtectedRoute>
+            }
           />
 
           <Route
             path="/configuracion/usuarios"
-            element={<ProtectedRoute> <Layout> <UsuariosPage /> </Layout> </ProtectedRoute>}
+            element={
+              <ProtectedRoute roles={['admin', 'administrador']}>
+                <Layout>
+                  <UsuariosPage />
+                </Layout>
+              </ProtectedRoute>
+            }
           />
 
+          {/* Rutas de productos y ventas */}
           <Route
             path="/productos"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute roles={['admin', 'administrador', 'vendedor']}>
                 <Layout>
                   <div>Productos (próximamente)</div>
                 </Layout>
@@ -61,7 +68,7 @@ function App() {
           <Route
             path="/clientes"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute roles={['admin', 'administrador', 'vendedor']}>
                 <Layout>
                   <div>Clientes (próximamente)</div>
                 </Layout>
@@ -72,7 +79,7 @@ function App() {
           <Route
             path="/ventas"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute roles={['admin', 'administrador', 'vendedor', 'cajero']}>
                 <Layout>
                   <div>Punto de Venta (próximamente)</div>
                 </Layout>
@@ -83,7 +90,7 @@ function App() {
           <Route
             path="/comprobantes"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute roles={['admin', 'administrador', 'vendedor', 'cajero']}>
                 <Layout>
                   <div>Comprobantes (próximamente)</div>
                 </Layout>

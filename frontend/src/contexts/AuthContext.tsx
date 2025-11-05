@@ -1,8 +1,7 @@
-// contexts/AuthContext.tsx
+// contexts/AuthContext-normalized.tsx
 
 import type { Rol, Usuario } from '@/types/User';
 import React, { createContext, useContext, useState, useEffect } from 'react';
-
 
 interface AuthContextType {
   user: Usuario | null;
@@ -26,6 +25,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Función para normalizar roles
+  const normalizeRoles = (userRoles: Rol[]): string[] => {
+    return (userRoles || [])
+      .map((r: Rol) => r.name || r.nombre)
+      .filter((role): role is string => !!role)
+      .map(role => role.toLowerCase()); // 🔧 Normalizar a minúsculas
+  };
+
   // Cargar usuario desde localStorage al iniciar
   useEffect(() => {
     const loadUser = () => {
@@ -37,8 +44,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const parsedUser = JSON.parse(userData);
           setUser(parsedUser);
 
-          // Extraer roles del usuario
-          const userRoles = parsedUser.roles?.map((r: Rol) => r.name || r.nombre) || [];
+          // 🔧 Normalizar roles
+          const userRoles = normalizeRoles(parsedUser.roles);
+          console.log('🎭 Normalized roles:', userRoles);
           setRoles(userRoles);
 
           // Extraer permisos si existen
@@ -58,19 +66,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Verificar si tiene un rol específico
   const hasRole = (role: string | string[]): boolean => {
     if (Array.isArray(role)) {
-      return role.some(r => roles.includes(r));
+      return role.some(r => roles.includes(r.toLowerCase()));
     }
-    return roles.includes(role);
+    return roles.includes(role.toLowerCase());
   };
 
   // Verificar si tiene alguno de los roles
   const hasAnyRole = (rolesToCheck: string[]): boolean => {
-    return rolesToCheck.some(role => roles.includes(role));
+    return rolesToCheck.some(role => roles.includes(role.toLowerCase()));
   };
 
   // Verificar si tiene todos los roles
   const hasAllRoles = (rolesToCheck: string[]): boolean => {
-    return rolesToCheck.every(role => roles.includes(role));
+    return rolesToCheck.every(role => roles.includes(role.toLowerCase()));
   };
 
   // Verificar si tiene un permiso específico
@@ -87,17 +95,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
 
-    // 👇 roles
-    const userRoles = (userData.roles?.map((r: Rol) => r.name || r.nombre) || [])
-      .filter((r): r is string => r !== undefined);
+    // 🔧 Normalizar roles al hacer login
+    const userRoles = normalizeRoles(userData.roles || []);
     setRoles(userRoles);
 
-    // 👇 permisos
+    // Permisos
     const userPermissions = (userData.permissions?.map((p: any) => p.name) || [])
       .filter((p): p is string => p !== undefined);
     setPermissions(userPermissions);
   };
-
 
   // Logout
   const logout = () => {
@@ -112,10 +118,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshUser = async () => {
     try {
       // Aquí deberías llamar a tu endpoint de perfil
-      // const response = await api.get('/user/profile');
-      // const userData = response.data.data;
-      // setUser(userData);
-      // ... actualizar roles y permisos
     } catch (error) {
       console.error('Error refreshing user:', error);
     }
