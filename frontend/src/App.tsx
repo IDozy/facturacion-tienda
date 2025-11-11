@@ -1,10 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import EmpresaPage from './pages/Empresa';
+import EmpresaPage from './pages/configuracion/Empresa';
 import Layout from './components/Layout';
 import './App.css'
-import { UsuariosPage } from './pages/Usuarios';
+import { UsuariosPage } from './pages/configuracion/Usuarios';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import Unauthorized from './pages/Unauthorized';

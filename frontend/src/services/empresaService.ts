@@ -62,26 +62,34 @@ export const getEmpresaByUserId = async (): Promise<Empresa> => {
   }
 };
 
-
-// src/services/empresaService.ts
-// En tu empresaService.ts, en la función updateEmpresa
-export const updateEmpresa = async (data: Partial<Empresa>): Promise<Empresa> => {
+// Función actualizada para manejar tanto FormData como objetos
+export const updateEmpresa = async (id: number, data: FormData | Partial<Empresa>): Promise<Empresa> => {
   try {
-    if (!data.id) {
-      throw new Error("El ID de la empresa es obligatorio para actualizarla.");
+    console.log('📤 ID de empresa:', id);
+    console.log('📤 Tipo de datos:', data instanceof FormData ? 'FormData' : 'Objeto');
+
+    // Si es FormData, mostrar su contenido
+    if (data instanceof FormData) {
+      console.log('📤 Contenido del FormData:');
+      for (const [key, value] of data.entries()) {
+        console.log(`  ${key}:`, value);
+      }
+    } else {
+      console.log('📤 Datos del objeto:', data);
     }
 
-    // 🔥 AGREGA ESTE LOG
-    console.log('📤 Datos que se van a enviar:', data);
-    console.log('📤 RUC específico:', data.ruc);
-    console.log('📤 Tipo de RUC:', typeof data.ruc);
+    const config = data instanceof FormData ? {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      }
+    } : {};
 
-    const res = await api.put(`/empresas/${data.id}`, data);
-    console.log("Empresa actualizada:", res.data.data);
-    return res.data.data;
+    const res = await api.post(`/empresas/${id}?_method=PUT`, data, config);
+    console.log("✅ Empresa actualizada:", res.data.data);
+    return res.data.data || res.data;
 
   } catch (error: any) {
-    console.error("Error al actualizar la empresa:", error);
+    console.error("❌ Error al actualizar la empresa:", error);
 
     if (error.response) {
       console.error("Response data:", error.response.data);

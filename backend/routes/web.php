@@ -184,6 +184,7 @@ Route::prefix('api')->middleware(['auth:sanctum'])->group(function () {
     Route::patch('empresas/{empresa}/cambiar-modo', [EmpresaController::class, 'cambiarModo']);
     Route::patch('empresas/{empresa}/toggle-pse', [EmpresaController::class, 'togglePse']);
     Route::get('empresas/{empresa}/estadisticas', [EmpresaController::class, 'estadisticas']);
+    Route::delete('empresas/{empresa}/logo', [EmpresaController::class, 'eliminarLogo']);
 
     // Configuraciones empresa
     Route::apiResource('configuraciones-empresa', ConfiguracionEmpresaController::class);

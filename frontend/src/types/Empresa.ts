@@ -8,6 +8,7 @@ export interface Empresa {
   ubigeo?: string;
   telefono?: string;
   email?: string;
+  logo?: string;
   web?: string;
   usuario_sol?: string;
   clave_sol?: string;

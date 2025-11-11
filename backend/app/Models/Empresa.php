@@ -19,6 +19,7 @@ class Empresa extends Model
         'direccion',
         'telefono',
         'email',
+        'logo',
         'certificado_digital',
         'clave_certificado',
         'usuario_sol',
@@ -29,6 +30,7 @@ class Empresa extends Model
 
     ];
 
+    protected $appends = ['logo_url'];
     protected $casts = [
         'fecha_expiracion_certificado' => 'date',
         'pse_autorizado' => 'boolean',
@@ -39,6 +41,21 @@ class Empresa extends Model
         'usuario_sol',
         'clave_sol',
     ];
+
+    
+    /**
+     * Accessor para obtener la URL completa del logo
+     */
+    public function getLogoUrlAttribute()
+    {
+        if ($this->logo) {
+            // Obtener la URL base del backend desde el .env
+            $backendUrl = config('app.url'); // http://localhost:8000
+            
+            return $backendUrl . '/storage/' . $this->logo;
+        }
+        return null;
+    }
 
     // Mutators para encriptar datos sensibles
     public function setCertificadoDigitalAttribute($value)
@@ -219,24 +236,23 @@ class Empresa extends Model
     }
 
     public static function validarRucValor(string $ruc): bool
-{
-    if (!is_numeric($ruc) || strlen($ruc) !== 11) {
-        return false;
+    {
+        if (!is_numeric($ruc) || strlen($ruc) !== 11) {
+            return false;
+        }
+
+        $factores = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
+        $suma = 0;
+
+        for ($i = 0; $i < 10; $i++) {
+            $suma += intval($ruc[$i]) * $factores[$i];
+        }
+
+        $residuo = $suma % 11;
+        $digito = 11 - $residuo;
+        if ($digito === 10) $digito = 0;
+        if ($digito === 11) $digito = 1;
+
+        return intval($ruc[10]) === $digito;
     }
-
-    $factores = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
-    $suma = 0;
-
-    for ($i = 0; $i < 10; $i++) {
-        $suma += intval($ruc[$i]) * $factores[$i];
-    }
-
-    $residuo = $suma % 11;
-    $digito = 11 - $residuo;
-    if ($digito === 10) $digito = 0;
-    if ($digito === 11) $digito = 1;
-
-    return intval($ruc[10]) === $digito;
-}
-
 }

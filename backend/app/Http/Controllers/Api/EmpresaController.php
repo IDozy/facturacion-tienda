@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Empresa;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -58,6 +59,7 @@ class EmpresaController extends Controller
             'direccion' => 'required|string|max:255',
             'telefono' => 'nullable|string|max:20',
             'email' => 'required|email|max:255',
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
             'certificado_digital' => 'nullable|string',
             'clave_certificado' => 'nullable|string',
             'usuario_sol' => 'nullable|string|max:100',
@@ -76,10 +78,24 @@ class EmpresaController extends Controller
 
         DB::beginTransaction();
         try {
-            $empresa = Empresa::create($request->all());
+            $data = $request->except('logo');
+
+            // Manejar logo
+            if ($request->hasFile('logo')) {
+                $logo = $request->file('logo');
+                $logoPath = $logo->store('empresas/logos', 'public');
+                $data['logo'] = $logoPath;
+            }
+
+            $empresa = Empresa::create($data);
 
             // Validar RUC
             if (!$empresa->validarRuc()) {
+                // Eliminar logo si la validación falla
+                if (isset($data['logo'])) {
+                    Storage::disk('public')->delete($data['logo']);
+                }
+                
                 DB::rollBack();
                 return response()->json([
                     'message' => 'El RUC ingresado no es válido'
@@ -101,6 +117,11 @@ class EmpresaController extends Controller
                 'data' => $empresa->load('configuracion')
             ], 201);
         } catch (\Exception $e) {
+            // Eliminar logo si hay error
+            if (isset($data['logo'])) {
+                Storage::disk('public')->delete($data['logo']);
+            }
+            
             DB::rollBack();
             return response()->json([
                 'message' => 'Error al crear la empresa',
@@ -136,6 +157,7 @@ class EmpresaController extends Controller
             'direccion' => 'sometimes|required|string|max:255',
             'telefono' => 'nullable|string|max:20',
             'email' => 'sometimes|required|email|max:255',
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
             'certificado_digital' => 'nullable|string',
             'clave_certificado' => 'nullable|string',
             'usuario_sol' => 'nullable|string|max:100',
@@ -153,7 +175,6 @@ class EmpresaController extends Controller
         }
 
         try {
-            // 🔥 SOLO CAMBIAR ESTAS LÍNEAS:
             // Validar RUC SOLO si viene en el request Y es DIFERENTE al actual
             if ($request->filled('ruc') && $request->ruc != $empresa->ruc) {
                 if (!Empresa::validarRucValor($request->ruc)) {
@@ -163,7 +184,22 @@ class EmpresaController extends Controller
                 }
             }
 
-            $empresa->update($request->all());
+            $data = $request->except('logo');
+
+            // Manejar logo
+            if ($request->hasFile('logo')) {
+                // Eliminar logo anterior si existe
+                if ($empresa->logo) {
+                    Storage::disk('public')->delete($empresa->logo);
+                }
+
+                // Guardar nuevo logo
+                $logo = $request->file('logo');
+                $logoPath = $logo->store('empresas/logos', 'public');
+                $data['logo'] = $logoPath;
+            }
+
+            $empresa->update($data);
 
             return response()->json([
                 'message' => 'Empresa actualizada exitosamente',
@@ -183,6 +219,11 @@ class EmpresaController extends Controller
     public function destroy(Empresa $empresa)
     {
         try {
+            // Eliminar logo si existe
+            if ($empresa->logo) {
+                Storage::disk('public')->delete($empresa->logo);
+            }
+
             $empresa->delete();
 
             return response()->json([
@@ -196,6 +237,31 @@ class EmpresaController extends Controller
         }
     }
 
+    /**
+     * Eliminar logo de la empresa
+     */
+    public function eliminarLogo(Empresa $empresa)
+    {
+        try {
+            if ($empresa->logo) {
+                Storage::disk('public')->delete($empresa->logo);
+                $empresa->update(['logo' => null]);
+
+                return response()->json([
+                    'message' => 'Logo eliminado exitosamente'
+                ]);
+            }
+
+            return response()->json([
+                'message' => 'La empresa no tiene logo'
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al eliminar el logo',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 
     /**
      * Verificar vigencia del certificado digital

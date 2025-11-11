@@ -20,6 +20,7 @@ return new class extends Migration
             $table->string('direccion')->nullable();
             $table->string('telefono', 15)->nullable();
             $table->string('email')->nullable();
+            $table->string('logo')->nullable();
 
             // === CERTIFICADO DIGITAL (encriptado en el modelo) ===
             $table->text('certificado_digital')->nullable(); // TEXT para archivos .pfx grandes

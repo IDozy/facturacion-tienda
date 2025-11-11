@@ -22,6 +22,7 @@ class EmpresaSeeder extends Seeder
                 'direccion' => 'Av. Los Empresarios 123, Lima, Perú',
                 'telefono' => '01-1234567',
                 'email' => 'demo@empresademo.com',
+                'logo' => null,
                 
                 // Certificado digital (en producción deberías encriptar esto)
                 'certificado_digital' => null, // Se agregará cuando tengas el archivo .pfx
@@ -47,6 +48,7 @@ class EmpresaSeeder extends Seeder
                 'direccion' => 'Jr. Comercio 456, Miraflores, Lima',
                 'telefono' => '01-9876543',
                 'email' => 'facturacion@corporacionejemplo.pe',
+                'logo' => null,
                 
                 // Certificado digital (en producción deberías encriptar esto)
                 'certificado_digital' => null, // Se agregará cuando tengas el archivo .pfx

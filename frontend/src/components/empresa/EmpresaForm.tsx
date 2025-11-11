@@ -10,7 +10,7 @@ import {
     CheckCircle2,
     AlertCircle,
     Eye,
-    User,
+    Image as ImageIcon,
 } from "lucide-react";
 import {
     getEmpresa,
@@ -29,6 +29,8 @@ export default function EmpresaForm() {
         telefono: "",
         email: "",
     });
+    const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [logoPreview, setLogoPreview] = useState<string | null>(null);
     const [usuario, setUsuario] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -77,6 +79,37 @@ export default function EmpresaForm() {
         if (errors[name]) setErrors({ ...errors, [name]: "" });
     };
 
+    const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            
+            // Validar tipo de archivo
+            if (!file.type.startsWith('image/')) {
+                setErrors({ ...errors, logo: "Solo se permiten archivos de imagen" });
+                return;
+            }
+            
+            // Validar tamaño (max 2MB)
+            if (file.size > 2048000) {
+                setErrors({ ...errors, logo: "El archivo no debe superar 2MB" });
+                return;
+            }
+            
+            setLogoFile(file);
+            
+            // Crear preview
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setLogoPreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+            
+            if (errors.logo) {
+                setErrors({ ...errors, logo: "" });
+            }
+        }
+    };
+
     const validateForm = () => {
         const newErrors: Record<string, string> = {};
         const hasAnyChange =
@@ -84,7 +117,8 @@ export default function EmpresaForm() {
             formData.razon_social ||
             formData.email ||
             formData.direccion ||
-            formData.telefono;
+            formData.telefono ||
+            logoFile;
         if (!hasAnyChange) {
             newErrors.submit = "Debe modificar al menos un campo";
             setErrors(newErrors);
@@ -112,26 +146,41 @@ export default function EmpresaForm() {
         setSaving(true);
         setShowSuccess(false);
         try {
+            // Crear FormData para enviar archivos
+            const formDataToSend = new FormData();
+
             // Asegurar que el RUC tenga 11 dígitos
             const rucToSend = formData.ruc
                 ? formData.ruc.padStart(11, "0")
                 : rucOriginal;
 
-            const dataToUpdate = {
-                id: empresa.id,
-                ruc: rucToSend,
-                razon_social: formData.razon_social || empresa.razon_social,
-                direccion: formData.direccion || empresa.direccion,
-                telefono: formData.telefono || empresa.telefono,
-                email: formData.email || empresa.email,
-            };
-
             // Validar que el RUC tenga 11 dígitos
-            if (dataToUpdate.ruc.length !== 11) {
+            if (rucToSend.length !== 11) {
                 throw new Error("El RUC debe tener exactamente 11 dígitos.");
             }
 
-            await updateEmpresa(dataToUpdate);
+            // Agregar campos al FormData solo si fueron modificados
+            formDataToSend.append("ruc", rucToSend);
+            
+            if (formData.razon_social) {
+                formDataToSend.append("razon_social", formData.razon_social);
+            }
+            if (formData.direccion) {
+                formDataToSend.append("direccion", formData.direccion);
+            }
+            if (formData.telefono) {
+                formDataToSend.append("telefono", formData.telefono);
+            }
+            if (formData.email) {
+                formDataToSend.append("email", formData.email);
+            }
+            
+            // Agregar logo si fue seleccionado
+            if (logoFile) {
+                formDataToSend.append("logo", logoFile);
+            }
+
+            await updateEmpresa(empresa.id!, formDataToSend);
 
             // Recargar los datos de la empresa
             const empresaId = empresa.id;
@@ -152,6 +201,8 @@ export default function EmpresaForm() {
                 telefono: "",
                 email: "",
             });
+            setLogoFile(null);
+            setLogoPreview(null);
 
             setShowSuccess(true);
             setTimeout(() => setShowSuccess(false), 3000);
@@ -177,6 +228,9 @@ export default function EmpresaForm() {
             </div>
         );
     }
+
+    // Obtener la URL del logo
+    const logoUrl = (empresa as any).logo_url || (empresa as any).logo;
 
     return (
         <div className="grid lg:grid-cols-3 gap-6">
@@ -265,8 +319,8 @@ export default function EmpresaForm() {
                                             onChange={handleChange}
                                             placeholder={empresa.razon_social || "Mi Empresa SAC"}
                                             className={`w-full pl-12 pr-4 py-3 border-1 rounded-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:border-transparent placeholder:text-slate-400 placeholder:opacity-60 ${errors.razon_social
-                                                    ? "border-red-300 bg-red-50"
-                                                    : "border-slate-300 hover:border-slate-300"
+                                                ? "border-red-300 bg-red-50"
+                                                : "border-slate-300 hover:border-slate-300"
                                                 }`}
                                         />
                                     </div>
@@ -314,8 +368,7 @@ export default function EmpresaForm() {
                                         />
                                     </div>
                                 </div>
-                            </div>
-                            <div>
+
                                 <div className="space-y-2">
                                     <label className="block text-sm font-semibold text-slate-700">
                                         Correo Electrónico <span className="text-red-500">*</span>
@@ -331,8 +384,8 @@ export default function EmpresaForm() {
                                             onChange={handleChange}
                                             placeholder={empresa.email || "contacto@miempresa.com"}
                                             className={`w-full pl-12 pr-4 py-3 border-1 rounded-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:border-transparent placeholder:text-slate-400 placeholder:opacity-60 ${errors.email
-                                                    ? "border-red-300 bg-red-50"
-                                                    : "border-slate-300 hover:border-slate-300"
+                                                ? "border-red-300 bg-red-50"
+                                                : "border-slate-300 hover:border-slate-300"
                                                 }`}
                                         />
                                     </div>
@@ -343,7 +396,43 @@ export default function EmpresaForm() {
                                         </p>
                                     )}
                                 </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-semibold text-slate-700">
+                                        Logo de la Empresa
+                                    </label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                            <ImageIcon className="w-5 h-5 text-slate-400" />
+                                        </div>
+                                        <input
+                                            type="file"
+                                            name="logo"
+                                            accept="image/jpeg,image/png,image/jpg,image/gif,image/svg+xml,image/webp"
+                                            onChange={handleLogoChange}
+                                            className={`w-full pl-12 pr-4 py-3 border-1 rounded-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                                errors.logo ? "border-red-300 bg-red-50" : "border-slate-300 hover:border-slate-300"
+                                            }`}
+                                        />
+                                    </div>
+                                    {errors.logo && (
+                                        <p className="text-sm text-red-600 flex items-center gap-1">
+                                            <AlertCircle className="w-4 h-4" />
+                                            {errors.logo}
+                                        </p>
+                                    )}
+                                    {logoPreview && (
+                                        <div className="mt-2">
+                                            <p className="text-xs text-slate-500 mb-1">Vista previa:</p>
+                                            <img
+                                                src={logoPreview}
+                                                alt="Preview"
+                                                className="w-32 h-32 object-contain border border-slate-300 rounded-sm"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
+
                         </div>
                         {/* Form Footer */}
                         <div className="bg-slate-50 px-8 py-6 border-t border-slate-300 flex justify-between items-center">
@@ -404,6 +493,15 @@ export default function EmpresaForm() {
                     </div>
                     {/* Content */}
                     <div className="p-4 space-y-4">
+                        {logoUrl && (
+                            <div className="flex justify-center pb-4 border-b border-slate-200">
+                                <img
+                                    src={logoUrl}
+                                    alt="Logo de la Empresa"
+                                    className="w-32 h-32 object-contain rounded-md"
+                                />
+                            </div>
+                        )}
                         {/* RUC */}
                         <div>
                             <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
@@ -459,6 +557,7 @@ export default function EmpresaForm() {
                                 )}
                             </p>
                         </div>
+
                     </div>
                     {/* Footer */}
                     <div className="bg-slate-50 px-4 py-3 border-t border-slate-200">
