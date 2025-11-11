@@ -153,14 +153,17 @@ class EmpresaController extends Controller
         }
 
         try {
-            $empresa->update($request->all());
-
-            // Validar RUC si cambió
-            if ($request->has('ruc') && !$empresa->validarRuc()) {
-                return response()->json([
-                    'message' => 'El RUC ingresado no es válido'
-                ], 422);
+            // 🔥 SOLO CAMBIAR ESTAS LÍNEAS:
+            // Validar RUC SOLO si viene en el request Y es DIFERENTE al actual
+            if ($request->filled('ruc') && $request->ruc != $empresa->ruc) {
+                if (!Empresa::validarRucValor($request->ruc)) {
+                    return response()->json([
+                        'message' => 'El RUC ingresado no es válido'
+                    ], 422);
+                }
             }
+
+            $empresa->update($request->all());
 
             return response()->json([
                 'message' => 'Empresa actualizada exitosamente',
@@ -193,30 +196,6 @@ class EmpresaController extends Controller
         }
     }
 
-    /**
-     * Validar RUC
-     */
-    public function validarRuc(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'ruc' => 'required|string|size:11',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Error de validación',
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $empresa = new Empresa(['ruc' => $request->ruc]);
-        $esValido = $empresa->validarRuc();
-
-        return response()->json([
-            'valido' => $esValido,
-            'message' => $esValido ? 'RUC válido' : 'RUC inválido'
-        ]);
-    }
 
     /**
      * Verificar vigencia del certificado digital
@@ -228,8 +207,8 @@ class EmpresaController extends Controller
         return response()->json([
             'vigente' => $vigente,
             'fecha_expiracion' => $empresa->fecha_expiracion_certificado,
-            'mensaje' => $vigente 
-                ? 'Certificado digital vigente' 
+            'mensaje' => $vigente
+                ? 'Certificado digital vigente'
                 : 'Certificado digital vencido o no configurado'
         ]);
     }
@@ -346,8 +325,8 @@ class EmpresaController extends Controller
             $empresa->save();
 
             return response()->json([
-                'message' => $empresa->pse_autorizado 
-                    ? 'PSE autorizado' 
+                'message' => $empresa->pse_autorizado
+                    ? 'PSE autorizado'
                     : 'PSE desautorizado',
                 'data' => $empresa
             ]);

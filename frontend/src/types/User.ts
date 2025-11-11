@@ -1,5 +1,19 @@
 // types/usuario.types.ts
 
+
+export interface Empresa {
+  id: number;
+  ruc: string;
+  razon_social: string;
+  nombre_comercial?: string;
+  direccion?: string;
+  telefono?: string;
+  email: string;
+  activo?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // ============ PERMISOS ============
 export interface Permiso {
   id: number;
@@ -42,8 +56,7 @@ export interface Usuario {
   rol?: Rol;                                    // Rol único (legacy)
   roles?: Rol[];                                // Array de roles (Spatie)
   empresa_id?: number;
-  empresa?: any;
-
+  empresa?: Empresa;
   permissions?: Permiso[];
 }
 
@@ -57,6 +70,7 @@ export interface CreateUsuarioDTO {
   tipo_documento: 'DNI' | 'RUC' | 'PASAPORTE';
   telefono: string;
   activo: boolean;
+  empresa_id?: number;  
 }
 
 export interface UpdateUsuarioDTO {
@@ -69,6 +83,7 @@ export interface UpdateUsuarioDTO {
   tipo_documento?: 'DNI' | 'RUC' | 'PASAPORTE';
   telefono?: string;
   activo?: boolean;
+  empresa_id?: number;
 }
 
 // ============ ROLES (CRUD) ============

@@ -191,31 +191,52 @@ class Empresa extends Model
     // Métodos de validación
     public function validarRuc()
     {
-        // Implementar validación de RUC peruano
-        if (strlen($this->ruc) !== 11) {
+        $ruc = $this->ruc;
+
+        if (!is_numeric($ruc) || strlen($ruc) !== 11) {
             return false;
         }
 
-        // Validación del dígito verificador
-        $suma = 0;
         $factores = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
+        $suma = 0;
 
         for ($i = 0; $i < 10; $i++) {
-            $suma += $this->ruc[$i] * $factores[$i];
+            $suma += intval($ruc[$i]) * $factores[$i];
         }
 
         $residuo = $suma % 11;
         $digito = 11 - $residuo;
+        if ($digito === 10) $digito = 0;
+        if ($digito === 11) $digito = 1;
 
-        if ($digito >= 10) {
-            $digito -= 10;
-        }
-
-        return $digito == $this->ruc[10];
+        return intval($ruc[10]) === $digito;
     }
+
 
     public function certificadoVigente()
     {
         return $this->fecha_expiracion_certificado && $this->fecha_expiracion_certificado->isFuture();
     }
+
+    public static function validarRucValor(string $ruc): bool
+{
+    if (!is_numeric($ruc) || strlen($ruc) !== 11) {
+        return false;
+    }
+
+    $factores = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
+    $suma = 0;
+
+    for ($i = 0; $i < 10; $i++) {
+        $suma += intval($ruc[$i]) * $factores[$i];
+    }
+
+    $residuo = $suma % 11;
+    $digito = 11 - $residuo;
+    if ($digito === 10) $digito = 0;
+    if ($digito === 11) $digito = 1;
+
+    return intval($ruc[10]) === $digito;
+}
+
 }

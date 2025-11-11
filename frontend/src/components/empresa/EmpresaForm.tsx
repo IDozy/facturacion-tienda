@@ -1,23 +1,65 @@
-// src/components/empresa/EmpresaForm.tsx
 import { useState, useEffect } from "react";
-import { Building2, Mail, Phone, MapPin, FileText, Save, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
-import { getEmpresa, updateEmpresa } from "../../services/empresaService";
+import {
+    Building2,
+    Mail,
+    Phone,
+    MapPin,
+    FileText,
+    Save,
+    Loader2,
+    CheckCircle2,
+    AlertCircle,
+    Eye,
+    User,
+} from "lucide-react";
+import {
+    getEmpresa,
+    updateEmpresa,
+    getUserWithEmpresa,
+    getEmpresaById,
+} from "../../services/empresaService";
 import type { Empresa } from "../../types/Empresa";
 
 export default function EmpresaForm() {
     const [empresa, setEmpresa] = useState<Partial<Empresa>>({});
+    const [formData, setFormData] = useState<Partial<Empresa>>({
+        ruc: "",
+        razon_social: "",
+        direccion: "",
+        telefono: "",
+        email: "",
+    });
+    const [usuario, setUsuario] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [rucOriginal, setRucOriginal] = useState<string>("");
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const data = await getEmpresa();
-                setEmpresa(data);
+                const userData = await getUserWithEmpresa();
+                setUsuario(userData);
+                const empresaId = userData.user?.empresa_id || userData.empresa_id;
+                let empresaData;
+                if (empresaId) {
+                    empresaData = await getEmpresaById(empresaId);
+                } else {
+                    empresaData = await getEmpresa();
+                }
+                setEmpresa(empresaData);
+                setRucOriginal(empresaData.ruc || "");
+                setFormData({
+                    ruc: "",
+                    razon_social: "",
+                    direccion: "",
+                    telefono: "",
+                    email: "",
+                });
             } catch (error) {
                 console.error("Error al obtener la empresa:", error);
+                setErrors({ fetch: "Error al cargar los datos de la empresa" });
             } finally {
                 setLoading(false);
             }
@@ -27,21 +69,37 @@ export default function EmpresaForm() {
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setEmpresa({ ...empresa, [name]: value });
-        if (errors[name]) {
-            setErrors({ ...errors, [name]: "" });
+        let processedValue = value;
+        if (name === "ruc") {
+            processedValue = value.replace(/\D/g, "").slice(0, 11);
         }
+        setFormData({ ...formData, [name]: processedValue });
+        if (errors[name]) setErrors({ ...errors, [name]: "" });
     };
 
     const validateForm = () => {
         const newErrors: Record<string, string> = {};
-        if (!empresa.ruc || empresa.ruc.length !== 11) {
+        const hasAnyChange =
+            formData.ruc ||
+            formData.razon_social ||
+            formData.email ||
+            formData.direccion ||
+            formData.telefono;
+        if (!hasAnyChange) {
+            newErrors.submit = "Debe modificar al menos un campo";
+            setErrors(newErrors);
+            return false;
+        }
+        if (formData.ruc && formData.ruc.length !== 11) {
             newErrors.ruc = "El RUC debe tener 11 dígitos";
         }
-        if (!empresa.razon_social) {
-            newErrors.razon_social = "La razón social es requerida";
+        if (formData.razon_social && formData.razon_social.trim() === "") {
+            newErrors.razon_social = "La razón social no puede estar vacía";
         }
-        if (!empresa.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(empresa.email)) {
+        if (
+            formData.email &&
+            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)
+        ) {
             newErrors.email = "Ingrese un correo válido";
         }
         setErrors(newErrors);
@@ -50,20 +108,60 @@ export default function EmpresaForm() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-
         if (!validateForm()) return;
-
         setSaving(true);
         setShowSuccess(false);
-
         try {
-            const updated = await updateEmpresa(empresa);
-            setEmpresa(updated);
+            // Asegurar que el RUC tenga 11 dígitos
+            const rucToSend = formData.ruc
+                ? formData.ruc.padStart(11, "0")
+                : rucOriginal;
+
+            const dataToUpdate = {
+                id: empresa.id,
+                ruc: rucToSend,
+                razon_social: formData.razon_social || empresa.razon_social,
+                direccion: formData.direccion || empresa.direccion,
+                telefono: formData.telefono || empresa.telefono,
+                email: formData.email || empresa.email,
+            };
+
+            // Validar que el RUC tenga 11 dígitos
+            if (dataToUpdate.ruc.length !== 11) {
+                throw new Error("El RUC debe tener exactamente 11 dígitos.");
+            }
+
+            await updateEmpresa(dataToUpdate);
+
+            // Recargar los datos de la empresa
+            const empresaId = empresa.id;
+            let empresaActualizada;
+            if (empresaId) {
+                empresaActualizada = await getEmpresaById(empresaId);
+            } else {
+                empresaActualizada = await getEmpresa();
+            }
+            setEmpresa({ ...empresaActualizada });
+            setRucOriginal(empresaActualizada.ruc || "");
+
+            // Reiniciar el formulario
+            setFormData({
+                ruc: "",
+                razon_social: "",
+                direccion: "",
+                telefono: "",
+                email: "",
+            });
+
             setShowSuccess(true);
             setTimeout(() => setShowSuccess(false), 3000);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error al actualizar la empresa:", error);
-            setErrors({ submit: "Error al guardar los cambios. Intente nuevamente." });
+            setErrors({
+                submit:
+                    error.message ||
+                    "Error al guardar los cambios. Asegúrate de que el RUC tenga 11 dígitos.",
+            });
         } finally {
             setSaving(false);
         }
@@ -81,35 +179,47 @@ export default function EmpresaForm() {
     }
 
     return (
-        <div className="">
-            
-                {/* Success Alert */}
-                {showSuccess && (
-                    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3 animate-pulse">
-                        <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
-                        <p className="text-green-800 font-medium">¡Cambios guardados exitosamente!</p>
+        <div className="grid lg:grid-cols-3 gap-6">
+            {/* Columna principal - Formulario */}
+            <div className="lg:col-span-2">
+                {/* Error de carga */}
+                {errors.fetch && (
+                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-sm flex items-center gap-3">
+                        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                        <p className="text-red-800 font-medium">{errors.fetch}</p>
                     </div>
                 )}
-
+                {/* Success Alert */}
+                {showSuccess && (
+                    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-sm flex items-center gap-3 animate-pulse">
+                        <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                        <p className="text-green-800 font-medium">
+                            ¡Cambios guardados exitosamente!
+                        </p>
+                    </div>
+                )}
                 {/* Error Alert */}
                 {errors.submit && (
-                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
+                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-sm flex items-center gap-3">
                         <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
                         <p className="text-red-800 font-medium">{errors.submit}</p>
                     </div>
                 )}
-
                 {/* Form Card */}
-                <div className="bg-white rounded-xl  border border-slate-200 overflow-hidden">
+                <div className="bg-white rounded-sm border border-slate-300 overflow-hidden">
                     <form onSubmit={handleSubmit}>
                         {/* Form Header */}
                         <div className="bg-blue-300 px-6 py-4">
                             <h2 className="text-xl font-semibold text-black flex items-center gap-2">
                                 <FileText className="w-5 h-5" />
-                                Datos Generales
+                                Datos Generales de la Empresa
+                                {usuario && empresa && (
+                                    <span className="text-sm font-normal text-blue-800 ml-2">
+                                        (ID: {empresa.id || "Nuevo"})
+                                    </span>
+                                )}
                             </h2>
                         </div>
-
                         {/* Form Body */}
                         <div className="p-6 space-y-4">
                             {/* RUC y Razón Social */}
@@ -125,11 +235,11 @@ export default function EmpresaForm() {
                                         <input
                                             type="text"
                                             name="ruc"
-                                            value={empresa.ruc || ""}
+                                            value={formData.ruc || ""}
                                             onChange={handleChange}
                                             maxLength={11}
-                                            placeholder="20123456789"
-                                            className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.ruc ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+                                            placeholder={empresa.ruc || "20123456789"}
+                                            className={`w-full pl-12 pr-4 py-3 border-1 rounded-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-400 placeholder:italic placeholder:opacity-70 ${errors.ruc ? "border-red-300 bg-red-50" : "border-slate-300 hover:border-slate-300"
                                                 }`}
                                         />
                                     </div>
@@ -140,7 +250,6 @@ export default function EmpresaForm() {
                                         </p>
                                     )}
                                 </div>
-
                                 <div className="space-y-2">
                                     <label className="block text-sm font-semibold text-slate-700">
                                         Razón Social <span className="text-red-500">*</span>
@@ -152,10 +261,12 @@ export default function EmpresaForm() {
                                         <input
                                             type="text"
                                             name="razon_social"
-                                            value={empresa.razon_social || ""}
+                                            value={formData.razon_social || ""}
                                             onChange={handleChange}
-                                            placeholder="Mi Empresa SAC"
-                                            className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.razon_social ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+                                            placeholder={empresa.razon_social || "Mi Empresa SAC"}
+                                            className={`w-full pl-12 pr-4 py-3 border-1 rounded-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:border-transparent placeholder:text-slate-400 placeholder:opacity-60 ${errors.razon_social
+                                                    ? "border-red-300 bg-red-50"
+                                                    : "border-slate-300 hover:border-slate-300"
                                                 }`}
                                         />
                                     </div>
@@ -166,50 +277,25 @@ export default function EmpresaForm() {
                                         </p>
                                     )}
                                 </div>
-                            </div>
-
-                            {/* Nombre Comercial */}
-                            <div className="space-y-2">
-                                <label className="block text-sm font-semibold text-slate-700">
-                                    Nombre Comercial
-                                </label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                        <Building2 className="w-5 h-5 text-slate-400" />
+                                {/* Dirección */}
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-semibold text-slate-700">
+                                        Dirección Fiscal
+                                    </label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                            <MapPin className="w-5 h-5 text-slate-400" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            name="direccion"
+                                            value={formData.direccion || ""}
+                                            onChange={handleChange}
+                                            placeholder={empresa.direccion || "Av. Principal 123, Lima"}
+                                            className="w-full pl-12 pr-4 py-3 border-1 border-slate-300 rounded-sm hover:border-slate-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:border-transparent placeholder:text-slate-400 placeholder:opacity-60"
+                                        />
                                     </div>
-                                    <input
-                                        type="text"
-                                        name="nombre_comercial"
-                                        value={empresa.nombre_comercial || ""}
-                                        onChange={handleChange}
-                                        placeholder="Nombre con el que opera la empresa"
-                                        className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl hover:border-slate-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    />
                                 </div>
-                            </div>
-
-                            {/* Dirección */}
-                            <div className="space-y-2">
-                                <label className="block text-sm font-semibold text-slate-700">
-                                    Dirección Fiscal
-                                </label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                        <MapPin className="w-5 h-5 text-slate-400" />
-                                    </div>
-                                    <input
-                                        type="text"
-                                        name="direccion"
-                                        value={empresa.direccion || ""}
-                                        onChange={handleChange}
-                                        placeholder="Av. Principal 123, Lima"
-                                        className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl hover:border-slate-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Teléfono y Email */}
-                            <div className="grid md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                     <label className="block text-sm font-semibold text-slate-700">
                                         Teléfono
@@ -221,14 +307,15 @@ export default function EmpresaForm() {
                                         <input
                                             type="tel"
                                             name="telefono"
-                                            value={empresa.telefono || ""}
+                                            value={formData.telefono || ""}
                                             onChange={handleChange}
-                                            placeholder="987654321"
-                                            className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl hover:border-slate-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            placeholder={empresa.telefono || "987654321"}
+                                            className="w-full pl-12 pr-4 py-3 border-1 border-slate-300 rounded-sm hover:border-slate-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:border-transparent placeholder:text-slate-400 placeholder:opacity-60"
                                         />
                                     </div>
                                 </div>
-
+                            </div>
+                            <div>
                                 <div className="space-y-2">
                                     <label className="block text-sm font-semibold text-slate-700">
                                         Correo Electrónico <span className="text-red-500">*</span>
@@ -240,10 +327,12 @@ export default function EmpresaForm() {
                                         <input
                                             type="email"
                                             name="email"
-                                            value={empresa.email || ""}
+                                            value={formData.email || ""}
                                             onChange={handleChange}
-                                            placeholder="contacto@miempresa.com"
-                                            className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.email ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+                                            placeholder={empresa.email || "contacto@miempresa.com"}
+                                            className={`w-full pl-12 pr-4 py-3 border-1 rounded-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:border-transparent placeholder:text-slate-400 placeholder:opacity-60 ${errors.email
+                                                    ? "border-red-300 bg-red-50"
+                                                    : "border-slate-300 hover:border-slate-300"
                                                 }`}
                                         />
                                     </div>
@@ -256,16 +345,16 @@ export default function EmpresaForm() {
                                 </div>
                             </div>
                         </div>
-
                         {/* Form Footer */}
-                        <div className="bg-slate-50 px-8 py-6 border-t border-slate-200 flex justify-between items-center">
+                        <div className="bg-slate-50 px-8 py-6 border-t border-slate-300 flex justify-between items-center">
                             <p className="text-sm text-slate-600">
-                                <span className="text-red-500">*</span> Campos obligatorios
+                                <span className="text-red-500">*</span> Campos obligatorios -
+                                Deje en blanco los campos que no desea modificar
                             </p>
                             <button
                                 type="submit"
                                 disabled={saving}
-                                className="group relative px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center gap-2"
+                                className="group relative px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-sm hover:from-blue-700 hover:to-blue-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center gap-2"
                             >
                                 {saving ? (
                                     <>
@@ -282,9 +371,8 @@ export default function EmpresaForm() {
                         </div>
                     </form>
                 </div>
-
                 {/* Info Card */}
-                <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-6">
+                <div className="mt-6 bg-blue-50 border border-blue-200 rounded-sm p-6">
                     <div className="flex gap-3">
                         <div className="flex-shrink-0">
                             <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -292,15 +380,94 @@ export default function EmpresaForm() {
                             </div>
                         </div>
                         <div>
-                            <h3 className="font-semibold text-blue-900 mb-1">Información importante</h3>
+                            <h3 className="font-semibold text-blue-900 mb-1">
+                                Información importante
+                            </h3>
                             <p className="text-sm text-blue-800 leading-relaxed">
-                                Los datos de la empresa se utilizarán para generar los comprobantes electrónicos que se enviarán a SUNAT.
-                                Asegúrate de que la información sea correcta y esté actualizada.
+                                Los datos de la empresa se utilizarán para generar los
+                                comprobantes electrónicos que se enviarán a SUNAT. Asegúrate de
+                                que la información sea correcta y esté actualizada.
                             </p>
                         </div>
                     </div>
                 </div>
-            
+            </div>
+            {/* Columna lateral - Vista previa de datos */}
+            <div className="lg:col-span-1">
+                <div className="bg-white rounded-sm border border-slate-300 overflow-hidden sticky top-4">
+                    {/* Header */}
+                    <div className="bg-slate-100 px-4 py-3 border-b border-slate-200">
+                        <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                            <Eye className="w-4 h-4" />
+                            Datos Actuales
+                        </h3>
+                    </div>
+                    {/* Content */}
+                    <div className="p-4 space-y-4">
+                        {/* RUC */}
+                        <div>
+                            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
+                                RUC
+                            </label>
+                            <p className="text-sm text-slate-900 font-medium">
+                                {empresa.ruc || (
+                                    <span className="text-slate-400 italic">No especificado</span>
+                                )}
+                            </p>
+                        </div>
+                        {/* Razón Social */}
+                        <div>
+                            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
+                                Razón Social
+                            </label>
+                            <p className="text-sm text-slate-900 font-medium">
+                                {empresa.razon_social || (
+                                    <span className="text-slate-400 italic">No especificado</span>
+                                )}
+                            </p>
+                        </div>
+                        {/* Dirección */}
+                        <div>
+                            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
+                                Dirección Fiscal
+                            </label>
+                            <p className="text-sm text-slate-900 leading-relaxed">
+                                {empresa.direccion || (
+                                    <span className="text-slate-400 italic">No especificado</span>
+                                )}
+                            </p>
+                        </div>
+                        {/* Teléfono */}
+                        <div>
+                            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
+                                Teléfono
+                            </label>
+                            <p className="text-sm text-slate-900">
+                                {empresa.telefono || (
+                                    <span className="text-slate-400 italic">No especificado</span>
+                                )}
+                            </p>
+                        </div>
+                        {/* Email */}
+                        <div>
+                            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
+                                Correo Electrónico
+                            </label>
+                            <p className="text-sm text-slate-900 break-words">
+                                {empresa.email || (
+                                    <span className="text-slate-400 italic">No especificado</span>
+                                )}
+                            </p>
+                        </div>
+                    </div>
+                    {/* Footer */}
+                    <div className="bg-slate-50 px-4 py-3 border-t border-slate-200">
+                        <p className="text-xs text-slate-500 text-center">
+                            Los cambios se reflejan al guardar
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }

@@ -17,6 +17,24 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // 🔥 NUEVO: Convertir PUT/PATCH a POST con _method para Laravel
+    if (config.method === 'put' || config.method === 'patch') {
+      const originalMethod = config.method.toUpperCase();
+      config.method = 'post';
+      config.headers['X-HTTP-Method-Override'] = originalMethod;
+
+      // Agregar _method al body
+      if (config.data) {
+        config.data = {
+          ...config.data,
+          _method: originalMethod
+        };
+      } else {
+        config.data = { _method: originalMethod };
+      }
+    }
+
     return config;
   },
   (error) => {
