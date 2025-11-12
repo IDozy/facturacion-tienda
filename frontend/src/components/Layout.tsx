@@ -115,7 +115,7 @@ const menuConfig: MenuItem[] = [
     items: [
       { path: '/configuracion/empresa', label: 'Empresa', icon: Building2, roles: ['admin', 'administrador'] },
       { path: '/configuracion/usuarios', label: 'Usuarios', icon: UserCog, roles: ['admin', 'administrador'] },
-      { path: '/configuracion/sunat', label: 'SUNAT', icon: Settings, roles: ['admin', 'administrador'] },
+      { path: '/configuracion/parametroscontables', label: 'Parametros Contables', icon: Settings, roles: ['admin', 'administrador'] },
       { path: '/configuracion/almacenes', label: 'Almacenes', icon: Warehouse, roles: ['admin', 'administrador'] },
       { path: '/configuracion/series', label: 'Series', icon: ListOrdered, roles: ['admin', 'administrador'] },
     ],
@@ -374,7 +374,7 @@ export default function Layout({ children }: LayoutProps) {
         </div>
 
         {/* Contenido dinámico */}
-        <div className="p-4 md:p-8">{children}</div>
+        <div className="p-4- md:p-8">{children}</div>
       </main>
     </div>
   );

@@ -197,6 +197,7 @@ Route::prefix('api')->middleware(['auth:sanctum'])->group(function () {
     Route::patch('configuraciones-empresa/{configuracionEmpresa}/actualizar-moneda', [ConfiguracionEmpresaController::class, 'actualizarMoneda']);
     Route::post('configuraciones-empresa/{configuracionEmpresa}/restablecer-defecto', [ConfiguracionEmpresaController::class, 'restablecerDefecto']);
     Route::get('monedas-disponibles', [ConfiguracionEmpresaController::class, 'monedasDisponibles']);
+    Route::put('configuracion-empresa/{id}', [ConfiguracionEmpresaController::class, 'update']);
 
     // Configuraciones
     Route::apiResource('configuraciones', ConfiguracionController::class);

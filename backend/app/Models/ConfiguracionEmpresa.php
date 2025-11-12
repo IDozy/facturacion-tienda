@@ -35,8 +35,8 @@ class ConfiguracionEmpresa extends Model
         'igv_porcentaje' => 18.00,
         'moneda_default' => 'PEN',
         'tolerancia_cuadratura' => 1.00,
-        'retencion_porcentaje_default' => 3.00,
-        'percepcion_porcentaje_default' => 2.00,
+        'retencion_porcentaje_default' => 0.00,
+        'percepcion_porcentaje_default' => 0.00,
     ];
 
     // === RELACIONES ===

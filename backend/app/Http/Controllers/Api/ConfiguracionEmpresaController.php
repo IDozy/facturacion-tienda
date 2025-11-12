@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ConfiguracionEmpresa;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 
 class ConfiguracionEmpresaController extends Controller
 {
@@ -47,16 +48,21 @@ class ConfiguracionEmpresaController extends Controller
         }
 
         try {
-            $configuracion = ConfiguracionEmpresa::create($request->all());
+            $configuracion = ConfiguracionEmpresa::create($validator->validated());
 
             return response()->json([
                 'message' => 'Configuración creada exitosamente',
                 'data' => $configuracion->load('empresa')
             ], 201);
         } catch (\Exception $e) {
+            Log::error('Error al crear configuración de empresa', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
                 'message' => 'Error al crear la configuración',
-                'error' => $e->getMessage()
+                'error' => config('app.debug') ? $e->getMessage() : 'Error interno del servidor'
             ], 500);
         }
     }
@@ -74,8 +80,10 @@ class ConfiguracionEmpresaController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, ConfiguracionEmpresa $configuracionEmpresa)
+    public function update(Request $request, $id)
     {
+        $configuracionEmpresa = ConfiguracionEmpresa::findOrFail($id);
+
         $validator = Validator::make($request->all(), [
             'igv_porcentaje' => 'sometimes|required|numeric|min:0|max:100',
             'moneda_default' => 'sometimes|required|string|in:PEN,USD,EUR',
@@ -85,26 +93,17 @@ class ConfiguracionEmpresaController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Error de validación',
-                'errors' => $validator->errors()
-            ], 422);
+            return response()->json(['message' => 'Error de validación', 'errors' => $validator->errors()], 422);
         }
 
-        try {
-            $configuracionEmpresa->update($request->all());
+        $configuracionEmpresa->update($validator->validated());
 
-            return response()->json([
-                'message' => 'Configuración actualizada exitosamente',
-                'data' => $configuracionEmpresa->fresh(['empresa'])
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Error al actualizar la configuración',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+        return response()->json([
+            'message' => 'Configuración actualizada exitosamente',
+            'data' => $configuracionEmpresa->fresh(['empresa']),
+        ]);
     }
+
 
     /**
      * Remove the specified resource from storage.
@@ -118,9 +117,14 @@ class ConfiguracionEmpresaController extends Controller
                 'message' => 'Configuración eliminada exitosamente'
             ]);
         } catch (\Exception $e) {
+            Log::error('Error al eliminar configuración de empresa', [
+                'id' => $configuracionEmpresa->id,
+                'error' => $e->getMessage()
+            ]);
+
             return response()->json([
                 'message' => 'Error al eliminar la configuración',
-                'error' => $e->getMessage()
+                'error' => config('app.debug') ? $e->getMessage() : 'Error interno del servidor'
             ], 500);
         }
     }
@@ -130,17 +134,31 @@ class ConfiguracionEmpresaController extends Controller
      */
     public function porEmpresa($empresaId)
     {
-        $configuracion = ConfiguracionEmpresa::deEmpresa($empresaId);
+        try {
+            $configuracion = ConfiguracionEmpresa::where('empresa_id', $empresaId)
+                ->with('empresa')
+                ->first();
 
-        if (!$configuracion) {
+            if (!$configuracion) {
+                return response()->json([
+                    'message' => 'Configuración no encontrada para esta empresa'
+                ], 404);
+            }
+
             return response()->json([
-                'message' => 'Configuración no encontrada para esta empresa'
-            ], 404);
-        }
+                'data' => $configuracion
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al buscar configuración por empresa', [
+                'empresa_id' => $empresaId,
+                'error' => $e->getMessage()
+            ]);
 
-        return response()->json([
-            'data' => $configuracion
-        ]);
+            return response()->json([
+                'message' => 'Error al buscar la configuración',
+                'error' => config('app.debug') ? $e->getMessage() : 'Error interno del servidor'
+            ], 500);
+        }
     }
 
     /**

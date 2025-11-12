@@ -8,6 +8,7 @@ import { UsuariosPage } from './pages/configuracion/Usuarios';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import Unauthorized from './pages/Unauthorized';
+import ParametrosContablesPage from './pages/configuracion/ParametrosContables';
 
 function App() {
   return (
@@ -48,6 +49,16 @@ function App() {
               <ProtectedRoute roles={['admin', 'administrador']}>
                 <Layout>
                   <UsuariosPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+           <Route
+            path="/configuracion/parametroscontables"
+            element={
+              <ProtectedRoute roles={['admin', 'administrador']}>
+                <Layout>
+                  <ParametrosContablesPage />
                 </Layout>
               </ProtectedRoute>
             }
