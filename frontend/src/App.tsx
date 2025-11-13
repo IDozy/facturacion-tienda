@@ -9,6 +9,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import Unauthorized from './pages/Unauthorized';
 import ParametrosContablesPage from './pages/configuracion/ParametrosContables';
+import AlmacenesPage from './pages/configuracion/Almacen';
 
 function App() {
   return (
@@ -53,7 +54,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-           <Route
+          <Route
             path="/configuracion/parametroscontables"
             element={
               <ProtectedRoute roles={['admin', 'administrador']}>
@@ -63,6 +64,19 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path="/configuracion/almacenes"
+            element={
+              <ProtectedRoute roles={['admin', 'administrador']}>
+                <Layout>
+                  <AlmacenesPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+
 
           {/* Rutas de productos y ventas */}
           <Route

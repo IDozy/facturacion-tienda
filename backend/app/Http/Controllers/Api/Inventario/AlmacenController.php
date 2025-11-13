@@ -20,6 +20,14 @@ class AlmacenController extends Controller
         $query = Almacen::with(['empresa'])
             ->withCount('productos');
 
+        // ✅ FILTRO POR EMPRESA (Multi-tenancy)
+        if ($request->has('empresa_id')) {
+            $query->where('empresa_id', $request->empresa_id);
+        } else {
+            // Si no se especifica, filtrar por empresa del usuario autenticado
+            $query->where('empresa_id', Auth::user()->empresa_id);
+        }
+
         // Filtros
         if ($request->has('activo')) {
             $query->where('activo', $request->activo);
@@ -44,7 +52,7 @@ class AlmacenController extends Controller
 
         // Paginación
         $perPage = $request->get('per_page', 15);
-        
+
         if ($request->get('all') === 'true') {
             $almacenes = $query->activos()->get();
             return response()->json(['data' => $almacenes]);
@@ -100,8 +108,10 @@ class AlmacenController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Almacen $almacen)
+    public function show($id)
     {
+        $almacen = Almacen::with(['empresa'])->findOrFail($id);
+
         // Verificar que pertenece a la misma empresa
         if ($almacen->empresa_id !== Auth::user()->empresa_id) {
             return response()->json([
@@ -110,22 +120,34 @@ class AlmacenController extends Controller
         }
 
         return response()->json([
-            'data' => $almacen->load(['empresa']),
+            'data' => $almacen,
             'cantidad_productos' => $almacen->productos()->count(),
             'valor_inventario' => $almacen->valorInventario(),
             'productos_bajo_stock' => $almacen->productosConBajoStock()->count()
         ]);
     }
 
+
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Almacen $almacen)
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, $id) // ✅ Cambia "Almacen $almacen" por "$id"
     {
+        // Buscar manualmente el almacén
+        $almacen = Almacen::findOrFail($id);
+
         // Verificar que pertenece a la misma empresa
         if ($almacen->empresa_id !== Auth::user()->empresa_id) {
             return response()->json([
-                'message' => 'No autorizado'
+                'message' => 'No autorizado',
+                'debug' => [
+                    'almacen_empresa_id' => $almacen->empresa_id,
+                    'user_empresa_id' => Auth::user()->empresa_id,
+                    'almacen_id' => $id
+                ]
             ], 403);
         }
 
@@ -143,6 +165,7 @@ class AlmacenController extends Controller
             ],
             'ubicacion' => 'nullable|string|max:255',
             'activo' => 'boolean',
+            '_method' => 'sometimes|string' // ✅ Ignorar el campo _method
         ]);
 
         if ($validator->fails()) {
@@ -153,7 +176,9 @@ class AlmacenController extends Controller
         }
 
         try {
-            $almacen->update($request->all());
+            // ✅ Filtrar solo los campos permitidos y excluir _method
+            $dataToUpdate = $request->only(['nombre', 'ubicacion', 'activo']);
+            $almacen->update($dataToUpdate);
 
             // Limpiar caché
             $this->limpiarCache($almacen->id);
@@ -169,12 +194,13 @@ class AlmacenController extends Controller
             ], 500);
         }
     }
-
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Almacen $almacen)
+    public function destroy($id)
     {
+        $almacen = Almacen::findOrFail($id);
+
         // Verificar que pertenece a la misma empresa
         if ($almacen->empresa_id !== Auth::user()->empresa_id) {
             return response()->json([
@@ -191,8 +217,6 @@ class AlmacenController extends Controller
 
         try {
             $almacen->delete();
-
-            // Limpiar caché
             $this->limpiarCache($almacen->id);
 
             return response()->json([
@@ -205,12 +229,13 @@ class AlmacenController extends Controller
             ], 500);
         }
     }
-
     /**
      * Toggle estado del almacén
      */
-    public function toggleEstado(Almacen $almacen)
+    public function toggleEstado($id)
     {
+        $almacen = Almacen::findOrFail($id);
+
         // Verificar que pertenece a la misma empresa
         if ($almacen->empresa_id !== Auth::user()->empresa_id) {
             return response()->json([
@@ -375,7 +400,7 @@ class AlmacenController extends Controller
         $productosConStock = $almacen->productos()->where('stock_actual', '>', 0)->count();
         $productosSinStock = $almacen->productos()->where('stock_actual', '<=', 0)->count();
         $productosBajoStock = $almacen->productosConBajoStock()->count();
-        
+
         $stockTotal = $almacen->productos()->sum('stock_actual');
         $valorInventario = $almacen->valorInventario();
 
@@ -450,7 +475,7 @@ class AlmacenController extends Controller
         }
 
         $empresaId = Auth::user()->empresa_id;
-        
+
         $almacenes = Almacen::whereIn('id', $request->almacen_ids)
             ->where('empresa_id', $empresaId)
             ->get();
@@ -488,7 +513,7 @@ class AlmacenController extends Controller
         if ($almacenId) {
             Cache::forget("almacen_{$almacenId}_valor_inventario");
             Cache::forget("almacen_{$almacenId}_bajo_stock");
-            
+
             // Limpiar cache de stock de productos
             $almacen = Almacen::find($almacenId);
             if ($almacen) {

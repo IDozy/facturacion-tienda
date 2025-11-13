@@ -308,6 +308,7 @@ Route::prefix('api')->middleware(['auth:sanctum'])->group(function () {
 
     // Inventario - Almacenes
     Route::apiResource('inventario/almacenes', AlmacenController::class);
+    Route::post('inventario/almacenes/{almacen}', [AlmacenController::class, 'update']);
     Route::patch('inventario/almacenes/{almacen}/toggle-estado', [AlmacenController::class, 'toggleEstado']);
     Route::get('inventario/almacenes/{almacen}/productos', [AlmacenController::class, 'productos']);
     Route::post('inventario/almacenes/{almacen}/verificar-stock', [AlmacenController::class, 'verificarStock']);
