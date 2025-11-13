@@ -71,15 +71,35 @@ class Almacen extends Model
         return $query->where('activo', false);
     }
 
-    public function scopeConStock($query)
+    public function scopeConStock($query, $conStock = true)
     {
-        return $query->whereHas('productos', fn($q) => $q->where('stock_actual', '>', 0));
+        if ($conStock) {
+            // Almacenes CON stock
+            return $query->whereHas(
+                'productos',
+                fn($q) =>
+                $q->where('stock_actual', '>', 0)
+            );
+        } else {
+            // Almacenes SIN stock (no tienen productos o todos tienen stock = 0)
+            return $query->where(function ($q) {
+                $q->doesntHave('productos')
+                    ->orWhereDoesntHave(
+                        'productos',
+                        fn($subQ) =>
+                        $subQ->where('stock_actual', '>', 0)
+                    );
+            });
+        }
     }
 
     // === MÉTODOS CON CACHE ===
     public function stockProducto(int $productoId): float
     {
-        return Cache::remember("almacen_{$this->id}_producto_{$productoId}_stock", 300, fn() =>
+        return Cache::remember(
+            "almacen_{$this->id}_producto_{$productoId}_stock",
+            300,
+            fn() =>
             $this->productos()->where('producto_id', $productoId)->value('stock_actual') ?? 0
         );
     }

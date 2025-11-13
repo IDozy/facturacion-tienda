@@ -2,7 +2,7 @@
 'use client';
 
 import { Edit2, Trash2, ToggleLeft, ToggleRight, MapPin, Package } from 'lucide-react';
-import type {Almacen } from '@/types/Almacen';
+import type { Almacen } from '@/types/Almacen';
 
 interface AlmacenTableProps {
   almacenes: Almacen[];
@@ -70,9 +70,6 @@ export default function AlmacenTable({
                     <div className="text-sm font-medium text-gray-900">
                       {almacen.nombre}
                     </div>
-                    <div className="text-xs text-gray-500">
-                      ID: {almacen.id}
-                    </div>
                   </div>
                 </div>
               </td>
@@ -96,11 +93,10 @@ export default function AlmacenTable({
               <td className="px-6 py-4 whitespace-nowrap text-center">
                 <button
                   onClick={() => onToggleEstado(almacen.id)}
-                  className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                    almacen.activo
+                  className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium transition-colors ${almacen.activo
                       ? 'bg-green-100 text-green-800 hover:bg-green-200'
                       : 'bg-red-100 text-red-800 hover:bg-red-200'
-                  }`}
+                    }`}
                 >
                   {almacen.activo ? (
                     <>

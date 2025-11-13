@@ -34,7 +34,8 @@ class AlmacenController extends Controller
         }
 
         if ($request->has('con_stock')) {
-            $query->conStock();
+            $conStock = filter_var($request->con_stock, FILTER_VALIDATE_BOOLEAN);
+            $query->conStock($conStock);
         }
 
         if ($request->has('search')) {
