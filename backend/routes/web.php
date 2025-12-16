@@ -262,6 +262,7 @@ Route::prefix('api')->middleware(['auth:sanctum'])->group(function () {
     // Inventario - Productos
     Route::apiResource('inventario/productos', ProductoController::class);
     Route::patch('inventario/productos/{producto}/toggle-estado', [ProductoController::class, 'toggleEstado']);
+    Route::get('inventario/productos-resumen', [ProductoController::class, 'resumen']);
     Route::put('inventario/productos/{producto}/actualizar-precios', [ProductoController::class, 'actualizarPrecios']);
     Route::get('inventario/productos/{producto}/stock-por-almacen', [ProductoController::class, 'stockPorAlmacen']);
     Route::get('inventario/productos-bajo-stock', [ProductoController::class, 'bajoStock']);
