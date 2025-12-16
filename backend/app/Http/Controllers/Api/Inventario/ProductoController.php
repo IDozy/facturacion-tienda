@@ -56,6 +56,32 @@ class ProductoController extends Controller
     }
 
     /**
+     * Resumen rápido de productos para dashboards.
+     */
+    public function resumen()
+    {
+        $empresaId = Auth::user()->empresa_id;
+
+        $productos = Producto::where('empresa_id', $empresaId)->get();
+
+        $total = $productos->count();
+        $activos = $productos->where('estado', 'activo')->count();
+        $inactivos = $productos->where('estado', 'inactivo')->count();
+        $bajoStock = $productos->filter(fn ($producto) => $producto->es_bajo_stock)->count();
+        $stockTotal = $productos->sum(fn ($producto) => $producto->stock_actual);
+        $valorInventario = $productos->sum(fn ($producto) => $producto->stock_actual * $producto->precio_promedio);
+
+        return response()->json([
+            'total' => $total,
+            'activos' => $activos,
+            'inactivos' => $inactivos,
+            'bajo_stock' => $bajoStock,
+            'stock_total' => round($stockTotal, 3),
+            'valor_inventario' => round($valorInventario, 2),
+        ]);
+    }
+
+    /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
