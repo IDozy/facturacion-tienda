@@ -103,11 +103,13 @@ Route::prefix('api')->middleware(['auth:sanctum'])->group(function () {
     Route::get('/roles', [RolController::class, 'index']);
 
 
-    // Gestión de usuarios
-    Route::apiResource('users', UserController::class);
-    Route::patch('users/{user}/toggle-status', [UserController::class, 'toggleStatus']);
-    Route::post('users/{user}/assign-roles', [UserController::class, 'assignRoles']);
-    Route::post('users/{user}/assign-permissions', [UserController::class, 'assignPermissions']);
+    // Gestión de usuarios (solo roles administrativos)
+    Route::middleware('role:admin|administrador')->group(function () {
+        Route::apiResource('users', UserController::class);
+        Route::patch('users/{user}/toggle-status', [UserController::class, 'toggleStatus']);
+        Route::post('users/{user}/assign-roles', [UserController::class, 'assignRoles']);
+        Route::post('users/{user}/assign-permissions', [UserController::class, 'assignPermissions']);
+    });
 
     // Tablas SUNAT
     Route::get('tablas-sunat/tipos', [TablaSunatController::class, 'tipos']);
