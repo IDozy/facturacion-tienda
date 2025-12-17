@@ -128,9 +128,8 @@ export const usuarioService = new UsuarioService();*/
 // services/usuarioService.ts
 
 import api from './api';
-import type { CreateUsuarioDTO, Rol, UpdateUsuarioDTO, Usuario } from "@/types/User";
+import type { CreateUsuarioDTO, Rol, UpdateUsuarioDTO, Usuario } from '@/types/User';
 
-// Agregar interfaces para empresa si no existen
 export interface Empresa {
   id: number;
   ruc: string;
@@ -148,71 +147,62 @@ export interface UsuarioAutenticado extends Usuario {
   empresa?: Empresa;
 }
 
+interface ApiResponse<T> {
+  success?: boolean;
+  message?: string;
+  data: T;
+  errors?: Record<string, string[]>;
+  meta?: unknown;
+}
+
+const parseError = (error: any, fallback: string) => {
+  if (error?.response?.data?.errors) {
+    return error.response.data.errors;
+  }
+  const message = error?.response?.data?.message || fallback;
+  throw new Error(message);
+};
+
 class UsuarioService {
-
-  // ============ MÉTODOS PARA USUARIO AUTENTICADO ============
-
-  /**
-   * Obtiene el perfil del usuario autenticado (incluyendo empresa)
-   */
   async obtenerPerfilUsuario(): Promise<UsuarioAutenticado> {
     try {
-      const response = await api.get('/user', {
-        params: {
-          include: 'empresa,roles,permissions' // Solicitar relaciones
-        }
-      });
-      return response.data.data || response.data;
+      const response = await api.get<ApiResponse<UsuarioAutenticado>>('/profile');
+      return response.data.data ?? (response.data as any).user ?? (response.data as any);
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Error al obtener perfil de usuario');
+      throw parseError(error, 'Error al obtener perfil de usuario');
     }
   }
 
-  /**
-   * Obtiene los datos de la empresa del usuario autenticado
-   */
   async obtenerEmpresaUsuario(): Promise<Empresa | null> {
-    try {
-      const perfil = await this.obtenerPerfilUsuario();
-      return perfil.empresa || null;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Error al obtener empresa del usuario');
-    }
+    const perfil = await this.obtenerPerfilUsuario();
+    return perfil.empresa || null;
   }
 
-  // ============ USUARIOS (TU CÓDIGO ORIGINAL) ============
-
-  async obtenerUsuarios(): Promise<Usuario[]> {
+  async obtenerUsuarios(): Promise<{ data: Usuario[]; meta?: unknown }> {
     try {
-      const response = await api.get('/users');
-      return response.data.data || response.data;
+      const response = await api.get<ApiResponse<Usuario[]>>('/users');
+      return {
+        data: response.data.data ?? (response.data as any).data ?? [],
+        meta: response.data.meta,
+      };
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Error al obtener usuarios');
+      throw parseError(error, 'Error al obtener usuarios');
     }
   }
 
   async obtenerUsuario(id: number): Promise<Usuario> {
     try {
-      const response = await api.get(`/users/${id}`);
-      return response.data.data || response.data;
+      const response = await api.get<ApiResponse<Usuario>>(`/users/${id}`);
+      return response.data.data ?? (response.data as any);
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Error al obtener usuario');
+      throw parseError(error, 'Error al obtener usuario');
     }
   }
 
   async crearUsuario(usuario: CreateUsuarioDTO): Promise<Usuario> {
     try {
-      // Obtener el nombre del rol desde el ID
-      const rolesResponse = await api.get('/roles');
-      const roles = rolesResponse.data.data || rolesResponse.data;
-      const rolSeleccionado = roles.find((r: Rol) => r.id === usuario.rol_id);
-      
-      if (!rolSeleccionado) {
-        throw new Error('Rol no encontrado');
-      }
-
-      // Transformar datos para el backend
-      const dataToSend = {
+      const rolNombre = await this.obtenerNombreRol(usuario.rol_id);
+      const payload = {
         nombre: usuario.nombre,
         email: usuario.email,
         password: usuario.password,
@@ -221,32 +211,23 @@ class UsuarioService {
         numero_documento: usuario.numero_documento,
         telefono: usuario.telefono || '',
         activo: usuario.activo,
-        roles: [rolSeleccionado.name || rolSeleccionado.nombre], // ← Array de nombres de roles
+        roles: rolNombre ? [rolNombre] : [],
       };
-      
-      console.log('📤 Enviando:', dataToSend);
-      const response = await api.post('/users', dataToSend);
-      console.log('✅ Creado:', response.data);
-      return response.data.data || response.data;
+
+      const response = await api.post<ApiResponse<Usuario>>('/users', payload);
+      return response.data.data ?? (response.data as any);
     } catch (error: any) {
-      console.error('❌ Error:', error.response?.data);
-      
-      if (error.response?.status === 422) {
-        const errors = error.response.data.errors || {};
-        const messages = Object.entries(errors)
-          .map(([field, msgs]) => `• ${field}: ${(msgs as string[]).join(', ')}`)
-          .join('\n');
-        throw new Error(messages || 'Error de validación');
+      if (error?.response?.status === 422) {
+        const validationErrors = parseError(error, 'Error de validación');
+        throw validationErrors;
       }
-      
-      throw new Error(error.response?.data?.message || 'Error al crear usuario');
+      throw parseError(error, 'Error al crear usuario');
     }
   }
 
   async actualizarUsuario(id: number, usuario: UpdateUsuarioDTO): Promise<Usuario> {
     try {
-      // Obtener el nombre del rol si se proporciona rol_id
-      let dataToSend: any = {
+      const payload: any = {
         nombre: usuario.nombre,
         email: usuario.email,
         tipo_documento: usuario.tipo_documento,
@@ -255,27 +236,24 @@ class UsuarioService {
         activo: usuario.activo,
       };
 
-      // Solo incluir password si se proporciona
-      if (usuario.password && usuario.password.trim() !== '') {
-        dataToSend.password = usuario.password;
-        dataToSend.password_confirmation = usuario.password_confirmation;
+      if (usuario.password) {
+        payload.password = usuario.password;
+        payload.password_confirmation = usuario.password_confirmation;
       }
 
-      // Si se proporciona rol_id, convertirlo a array de nombres
       if (usuario.rol_id) {
-        const rolesResponse = await api.get('/roles');
-        const roles = rolesResponse.data.data || rolesResponse.data;
-        const rolSeleccionado = roles.find((r: Rol) => r.id === usuario.rol_id);
-        
-        if (rolSeleccionado) {
-          dataToSend.roles = [rolSeleccionado.name || rolSeleccionado.nombre];
-        }
+        const rolNombre = await this.obtenerNombreRol(usuario.rol_id);
+        payload.roles = rolNombre ? [rolNombre] : [];
       }
 
-      const response = await api.put(`/users/${id}`, dataToSend);
-      return response.data.data || response.data;
+      const response = await api.put<ApiResponse<Usuario>>(`/users/${id}`, payload);
+      return response.data.data ?? (response.data as any);
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Error al actualizar usuario');
+      if (error?.response?.status === 422) {
+        const validationErrors = parseError(error, 'Error de validación');
+        throw validationErrors;
+      }
+      throw parseError(error, 'Error al actualizar usuario');
     }
   }
 
@@ -283,18 +261,24 @@ class UsuarioService {
     try {
       await api.delete(`/users/${id}`);
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Error al eliminar usuario');
+      throw parseError(error, 'Error al eliminar usuario');
     }
   }
 
-  // ROLES (TU CÓDIGO ORIGINAL)
   async obtenerRoles(): Promise<Rol[]> {
     try {
-      const response = await api.get('/roles');
-      return response.data.data || response.data;
+      const response = await api.get<ApiResponse<Rol[]>>('/roles');
+      return response.data.data ?? (response.data as any).data ?? [];
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Error al obtener roles');
+      throw parseError(error, 'Error al obtener roles');
     }
+  }
+
+  private async obtenerNombreRol(rolId?: number): Promise<string | null> {
+    if (!rolId) return null;
+    const roles = await this.obtenerRoles();
+    const rolSeleccionado = roles.find((r) => r.id === rolId);
+    return rolSeleccionado ? rolSeleccionado.name || rolSeleccionado.nombre || null : null;
   }
 }
 
