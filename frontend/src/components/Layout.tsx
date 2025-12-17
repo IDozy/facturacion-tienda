@@ -1,36 +1,13 @@
 // Layout.tsx
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Home,
-  Package,
-  Users,
-  FileText,
-  BookOpen,
-  BarChart3,
-  Settings,
-  LogOut,
-  Building2,
-  Briefcase,
-  ClipboardList,
-  LineChart,
-  UserCog,
-  ChevronDown,
-  ShoppingCart,
-  Calculator,
-  FileBarChart,
-  Menu,
-  X,
-  Receipt,
-  Wrench,
-  DollarSign,
-  Warehouse,
-  ListOrdered,
-} from 'lucide-react';
+import { ChevronDown, LogOut, Menu, Receipt, X } from 'lucide-react';
 import { authService } from '../services/auth';
+import { Toaster } from 'react-hot-toast';
+import { navConfig, type NavItemConfig } from '../config/navConfig';
 
 
 
@@ -38,89 +15,14 @@ interface LayoutProps {
   children: ReactNode;
 }
 
-interface MenuItem {
-  key: string;
-  label: string;
-  icon: any;
-  path?: string;
-  items?: Array<{
-    path: string;
-    label: string;
-    icon: any;
-    roles?: string[];
-  }>;
-  roles?: string[]; // Roles permitidos para ver este item
-}
-
-// Configuración del menú lateral con control de roles
-const menuConfig: MenuItem[] = [
-  {
-    key: 'dashboard',
-    label: 'Dashboard',
-    icon: Home,
-    path: '/dashboard',
-    roles: [], // Todos pueden ver (vacío = sin restricción)
-  },
-  {
-    key: 'ventas',
-    label: 'Ventas',
-    icon: ShoppingCart,
-    roles: ['admin',"administrador", 'vendedor', 'cajero'],
-    items: [
-      { path: '/ventas/nueva', label: 'Nueva Venta', icon: FileText, roles: ['admin', 'administrador', 'vendedor', 'cajero'] },
-      { path: '/ventas/comprobantes', label: 'Comprobantes', icon: ClipboardList, roles: ['admin', 'administrador', 'vendedor', 'cajero'] },
-      { path: '/ventas/clientes', label: 'Clientes', icon: Users, roles: ['admin', 'administrador', 'vendedor'] },
-      { path: '/ventas/productos', label: 'Productos', icon: Package, roles: ['admin', 'administrador', 'vendedor'] },
-      { path: '/ventas/servicios', label: 'Servicios', icon: Wrench, roles: ['admin', 'administrador', 'vendedor'] },
-    ],
-  },
-  {
-    key: 'contabilidad',
-    label: 'Contabilidad',
-    icon: Calculator,
-    roles: ['admin', 'administrador', 'contador'],
-    items: [
-      { path: '/contabilidad/asientos', label: 'Asientos', icon: BookOpen, roles: ['admin', 'administrador', 'contador'] },
-      { path: '/contabilidad/plan-cuentas', label: 'Plan de Cuentas', icon: Briefcase, roles: ['admin', 'administrador', 'contador'] },
-      { path: '/contabilidad/diario', label: 'Diario', icon: FileText, roles: ['admin', 'administrador', 'contador'] },
-    ],
-  },
-  {
-    key: 'inventario',
-    label: 'Inventario',
-    icon: Package,
-    roles: ['admin', 'administrador', 'vendedor'],
-    items: [
-      { path: '/inventario/productos', label: 'Productos', icon: BookOpen, roles: ['admin', 'administrador', 'vendedor'] },
-      { path: '/inventario/almacen', label: 'Almacenes', icon: Briefcase, roles: ['admin', 'administrador'] },
-    ],
-  },
-  {
-    key: 'reportes',
-    label: 'Reportes',
-    icon: FileBarChart,
-    roles: ['admin', 'administrador', 'contador'],
-    items: [
-      { path: '/reportes/ventas', label: 'Ventas', icon: BarChart3, roles: ['admin', 'administrador', 'contador'] },
-      { path: '/reportes/inventario', label: 'Inventario', icon: LineChart, roles: ['admin', 'administrador', 'contador'] },
-      { path: '/reportes/cobranzas', label: 'Cobranzas', icon: DollarSign, roles: ['admin', 'administrador', 'contador'] },
-      { path: '/reportes/8-6', label: 'Formato 8.6', icon: FileText, roles: ['admin', 'administrador', 'contador'] },
-    ],
-  },
-  {
-    key: 'configuracion',
-    label: 'Configuración',
-    icon: Settings,
-    roles: ['admin', 'administrador'],
-    items: [
-      { path: '/configuracion/empresa', label: 'Empresa', icon: Building2, roles: ['admin', 'administrador'] },
-      { path: '/configuracion/usuarios', label: 'Usuarios', icon: UserCog, roles: ['admin', 'administrador'] },
-      { path: '/configuracion/parametroscontables', label: 'Parametros Contables', icon: Settings, roles: ['admin', 'administrador'] },
-      { path: '/configuracion/almacenes', label: 'Almacenes', icon: Warehouse, roles: ['admin', 'administrador'] },
-      { path: '/configuracion/series', label: 'Series', icon: ListOrdered, roles: ['admin', 'administrador'] },
-    ],
-  },
-];
+const filterByRoles = (items: NavItemConfig[], hasAccess: (roles?: string[]) => boolean) =>
+  items
+    .filter((menu) => hasAccess(menu.roles))
+    .map((menu) => ({
+      ...menu,
+      items: menu.items ? filterByRoles(menu.items, hasAccess) : undefined,
+    }))
+    .filter((menu) => !menu.items || menu.items.length > 0);
 
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
@@ -141,14 +43,7 @@ export default function Layout({ children }: LayoutProps) {
     return authService.hasAnyRole(roles);
   };
 
-  // Filtrar menú según roles del usuario
-  const filteredMenuConfig = menuConfig
-    .filter(menu => hasAccess(menu.roles))
-    .map(menu => ({
-      ...menu,
-      items: menu.items?.filter(item => hasAccess(item.roles))
-    }))
-    .filter(menu => !menu.items || menu.items.length > 0); // Eliminar secciones sin items
+  const filteredMenuConfig = filterByRoles(navConfig, hasAccess);
 
   // Detectar sección abierta según la ruta actual
   useEffect(() => {
@@ -376,6 +271,7 @@ export default function Layout({ children }: LayoutProps) {
         {/* Contenido dinámico */}
         <div className="p-4- md:p-8">{children}</div>
       </main>
+      <Toaster position="top-right" toastOptions={{ duration: 3500 }} />
     </div>
   );
 }

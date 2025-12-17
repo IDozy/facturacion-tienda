@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\Contabilidad\DiarioController;
 use App\Http\Controllers\Api\Contabilidad\PeriodoContableController;
 use App\Http\Controllers\Api\Contabilidad\PlanCuentaController;
 use App\Http\Controllers\Api\EmpresaController;
+use App\Http\Controllers\Api\EmpresaMeController;
 use App\Http\Controllers\Api\Facturacion\ComprobanteController;
 use App\Http\Controllers\Api\Facturacion\ComprobanteDetalleController;
 use App\Http\Controllers\Api\Facturacion\GuiaRemisionController;
@@ -102,11 +103,13 @@ Route::prefix('api')->middleware(['auth:sanctum'])->group(function () {
     Route::get('/roles', [RolController::class, 'index']);
 
 
-    // Gestión de usuarios
-    Route::apiResource('users', UserController::class);
-    Route::patch('users/{user}/toggle-status', [UserController::class, 'toggleStatus']);
-    Route::post('users/{user}/assign-roles', [UserController::class, 'assignRoles']);
-    Route::post('users/{user}/assign-permissions', [UserController::class, 'assignPermissions']);
+    // Gestión de usuarios (solo roles administrativos)
+    Route::middleware('role:admin|administrador')->group(function () {
+        Route::apiResource('users', UserController::class);
+        Route::patch('users/{user}/toggle-status', [UserController::class, 'toggleStatus']);
+        Route::post('users/{user}/assign-roles', [UserController::class, 'assignRoles']);
+        Route::post('users/{user}/assign-permissions', [UserController::class, 'assignPermissions']);
+    });
 
     // Tablas SUNAT
     Route::get('tablas-sunat/tipos', [TablaSunatController::class, 'tipos']);
@@ -185,6 +188,13 @@ Route::prefix('api')->middleware(['auth:sanctum'])->group(function () {
     Route::patch('empresas/{empresa}/toggle-pse', [EmpresaController::class, 'togglePse']);
     Route::get('empresas/{empresa}/estadisticas', [EmpresaController::class, 'estadisticas']);
     Route::delete('empresas/{empresa}/logo', [EmpresaController::class, 'eliminarLogo']);
+
+    // Configuración de empresa autenticada
+    Route::prefix('empresa')->group(function () {
+        Route::get('me', [EmpresaMeController::class, 'show']);
+        Route::put('me', [EmpresaMeController::class, 'update']);
+        Route::post('me/logo', [EmpresaMeController::class, 'uploadLogo']);
+    });
 
     // Configuraciones empresa
     Route::apiResource('configuraciones-empresa', ConfiguracionEmpresaController::class);
