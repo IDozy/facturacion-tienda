@@ -37,7 +37,7 @@ function App() {
             />
           ))}
 
-          {/* Redirecciones */}
+          {/* Redirecciones (legacy) */}
           <Route
             path="/configuracion/empresa"
             element={<Navigate to="/dashboard/configuracion/empresa" replace />}
@@ -52,3 +52,4 @@ function App() {
 }
 
 export default App;
+

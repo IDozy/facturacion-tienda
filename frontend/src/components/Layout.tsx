@@ -1,5 +1,4 @@
 // Layout.tsx
-
 import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -7,9 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, LogOut, Menu, Receipt, X } from 'lucide-react';
 import { authService } from '../services/auth';
 import { Toaster } from 'react-hot-toast';
+
 import { navConfig, type NavItemConfig } from '../config/navConfig';
-
-
 
 interface LayoutProps {
   children: ReactNode;
@@ -28,8 +26,7 @@ export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const user = authService.getUser();
-  const userRoles = (authService.getUserRoles() || []).map(r => r.toLowerCase());
-
+  const userRoles = (authService.getUserRoles() || []).map((r) => r.toLowerCase());
 
   const [openSection, setOpenSection] = useState<string>('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -54,7 +51,7 @@ export default function Layout({ children }: LayoutProps) {
     if (section) {
       setOpenSection(section.key);
     }
-  }, [location.pathname]);
+  }, [location.pathname, filteredMenuConfig]);
 
   // Cerrar sidebar al cambiar de ruta en móvil
   useEffect(() => {
@@ -255,10 +252,7 @@ export default function Layout({ children }: LayoutProps) {
       >
         {/* Header móvil */}
         <div className="md:hidden bg-white shadow-sm p-4 flex items-center justify-between sticky top-0 z-30">
-          <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="text-black hover:text-red-600"
-          >
+          <button onClick={() => setIsSidebarOpen(true)} className="text-black hover:text-red-600">
             <Menu className="w-6 h-6" />
           </button>
           <div className="flex items-center space-x-2">
@@ -271,6 +265,7 @@ export default function Layout({ children }: LayoutProps) {
         {/* Contenido dinámico */}
         <div className="p-4- md:p-8">{children}</div>
       </main>
+
       <Toaster position="top-right" toastOptions={{ duration: 3500 }} />
     </div>
   );
