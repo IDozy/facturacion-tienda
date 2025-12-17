@@ -4,13 +4,26 @@ export interface Empresa {
   ruc: string;
   razon_social: string;
   nombre_comercial?: string;
-  direccion: string;
-  ubigeo?: string;
+  direccion?: string;
+  direccion_fiscal?: string;
+  departamento?: string;
+  provincia?: string;
+  distrito?: string;
   telefono?: string;
   email?: string;
   logo?: string;
   logo_url?: string; // URL del logo después de subirlo
   web?: string;
+  moneda?: 'PEN' | 'USD';
+  igv_porcentaje?: number;
+  incluye_igv_por_defecto?: boolean;
+  serie_factura?: string;
+  serie_boleta?: string;
+  numero_factura_actual?: number;
+  numero_boleta_actual?: number;
+  formato_fecha?: 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD';
+  decimales?: number;
+  zona_horaria?: string;
   
   // Configuración SUNAT
   usuario_sol?: string;

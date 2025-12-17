@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\Contabilidad\DiarioController;
 use App\Http\Controllers\Api\Contabilidad\PeriodoContableController;
 use App\Http\Controllers\Api\Contabilidad\PlanCuentaController;
 use App\Http\Controllers\Api\EmpresaController;
+use App\Http\Controllers\Api\EmpresaMeController;
 use App\Http\Controllers\Api\Facturacion\ComprobanteController;
 use App\Http\Controllers\Api\Facturacion\ComprobanteDetalleController;
 use App\Http\Controllers\Api\Facturacion\GuiaRemisionController;
@@ -185,6 +186,13 @@ Route::prefix('api')->middleware(['auth:sanctum'])->group(function () {
     Route::patch('empresas/{empresa}/toggle-pse', [EmpresaController::class, 'togglePse']);
     Route::get('empresas/{empresa}/estadisticas', [EmpresaController::class, 'estadisticas']);
     Route::delete('empresas/{empresa}/logo', [EmpresaController::class, 'eliminarLogo']);
+
+    // Configuración de empresa autenticada
+    Route::prefix('empresa')->group(function () {
+        Route::get('me', [EmpresaMeController::class, 'show']);
+        Route::put('me', [EmpresaMeController::class, 'update']);
+        Route::post('me/logo', [EmpresaMeController::class, 'uploadLogo']);
+    });
 
     // Configuraciones empresa
     Route::apiResource('configuraciones-empresa', ConfiguracionEmpresaController::class);

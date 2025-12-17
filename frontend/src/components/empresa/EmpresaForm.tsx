@@ -1,827 +1,542 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
-    Building2,
-    Mail,
-    Phone,
-    MapPin,
-    FileText,
-    Save,
-    Loader2,
-    CheckCircle2,
-    AlertCircle,
-    Eye,
-    Image as ImageIcon,
-    Shield,
-    Key,
+  AlertCircle,
+  Building2,
+  CheckCircle2,
+  Image as ImageIcon,
+  Loader2,
+  RefreshCcw,
+  Save,
+  Settings2,
+  ShieldCheck,
+  Upload,
 } from "lucide-react";
-import {
-    getEmpresa,
-    updateEmpresa,
-    getUserWithEmpresa,
-    getEmpresaById,
-} from "../../services/empresaService";
+import { z } from "zod";
+import toast from "react-hot-toast";
+
+import { actualizarEmpresaActual, getEmpresaActual, subirLogoEmpresa } from "../../services/empresaService";
 import type { Empresa } from "../../types/Empresa";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+
+const formSchema = z.object({
+  razon_social: z.string().min(1, "La razón social es obligatoria"),
+  nombre_comercial: z.string().optional().or(z.literal("")),
+  ruc: z
+    .string()
+    .trim()
+    .regex(/^\d{11}$/g, "El RUC debe tener 11 dígitos"),
+  telefono: z.string().optional().or(z.literal("")),
+  email: z.string().email("Correo inválido").optional().or(z.literal("")),
+  direccion_fiscal: z.string().optional().or(z.literal("")),
+  departamento: z.string().optional().or(z.literal("")),
+  provincia: z.string().optional().or(z.literal("")),
+  distrito: z.string().optional().or(z.literal("")),
+  moneda: z.enum(["PEN", "USD"]),
+  igv_porcentaje: z.coerce.number().min(0).max(100),
+  incluye_igv_por_defecto: z.boolean(),
+  serie_factura: z.string().optional().or(z.literal("")),
+  serie_boleta: z.string().optional().or(z.literal("")),
+  numero_factura_actual: z.coerce.number().min(0),
+  numero_boleta_actual: z.coerce.number().min(0),
+  formato_fecha: z.enum(["DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD"]),
+  decimales: z.coerce.number().min(0).max(6),
+  zona_horaria: z.string().min(1, "Selecciona una zona horaria"),
+});
+
+const defaultValues: z.infer<typeof formSchema> = {
+  razon_social: "",
+  nombre_comercial: "",
+  ruc: "",
+  telefono: "",
+  email: "",
+  direccion_fiscal: "",
+  departamento: "",
+  provincia: "",
+  distrito: "",
+  moneda: "PEN",
+  igv_porcentaje: 18,
+  incluye_igv_por_defecto: true,
+  serie_factura: "",
+  serie_boleta: "",
+  numero_factura_actual: 1,
+  numero_boleta_actual: 1,
+  formato_fecha: "DD/MM/YYYY",
+  decimales: 2,
+  zona_horaria: "America/Lima",
+};
+
+const zonasHorarias = ["America/Lima", "America/Bogota", "America/Mexico_City", "America/Santiago", "UTC"];
+
+function buildFormValues(empresa: Empresa | null): z.infer<typeof formSchema> {
+  if (!empresa) return defaultValues;
+
+  return {
+    ...defaultValues,
+    razon_social: empresa.razon_social || "",
+    nombre_comercial: empresa.nombre_comercial || "",
+    ruc: empresa.ruc || "",
+    telefono: empresa.telefono || "",
+    email: empresa.email || "",
+    direccion_fiscal: empresa.direccion_fiscal || empresa.direccion || "",
+    departamento: empresa.departamento || "",
+    provincia: empresa.provincia || "",
+    distrito: empresa.distrito || "",
+    moneda: (empresa.moneda as "PEN" | "USD") || "PEN",
+    igv_porcentaje: Number(empresa.igv_porcentaje ?? 18),
+    incluye_igv_por_defecto: Boolean(empresa.incluye_igv_por_defecto ?? true),
+    serie_factura: empresa.serie_factura || "",
+    serie_boleta: empresa.serie_boleta || "",
+    numero_factura_actual: Number(empresa.numero_factura_actual ?? 1),
+    numero_boleta_actual: Number(empresa.numero_boleta_actual ?? 1),
+    formato_fecha: (empresa.formato_fecha as any) || "DD/MM/YYYY",
+    decimales: Number(empresa.decimales ?? 2),
+    zona_horaria: empresa.zona_horaria || "America/Lima",
+  };
+}
 
 export default function EmpresaForm() {
-    const [empresa, setEmpresa] = useState<Partial<Empresa>>({});
-    const [formData, setFormData] = useState<Partial<Empresa>>({
-        ruc: "",
-        razon_social: "",
-        direccion: "",
-        telefono: "",
-        email: "",
-        usuario_sol: "",
-        clave_sol: "",
-        clave_certificado: "",
-        modo: "prueba",
-        fecha_expiracion_certificado: "",
-        pse_autorizado: false,
-    });
-    const [logoFile, setLogoFile] = useState<File | null>(null);
-    const [logoPreview, setLogoPreview] = useState<string | null>(null);
-    const [certificadoFile, setCertificadoFile] = useState<File | null>(null);
-    const [usuario, setUsuario] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [showSuccess, setShowSuccess] = useState(false);
-    const [errors, setErrors] = useState<Record<string, string>>({});
-    const [rucOriginal, setRucOriginal] = useState<string>("");
+  const [empresa, setEmpresa] = useState<Empresa | null>(null);
+  const [initialValues, setInitialValues] = useState<z.infer<typeof formSchema>>(defaultValues);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"general" | "facturacion" | "preferencias">("general");
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const userData = await getUserWithEmpresa();
-                setUsuario(userData);
-                const empresaId = userData.user?.empresa_id || userData.empresa_id;
-                let empresaData;
-                if (empresaId) {
-                    empresaData = await getEmpresaById(empresaId);
-                } else {
-                    empresaData = await getEmpresa();
-                }
-                setEmpresa(empresaData);
-                setRucOriginal(empresaData.ruc || "");
-                setFormData({
-                    ruc: "",
-                    razon_social: "",
-                    direccion: "",
-                    telefono: "",
-                    email: "",
-                    usuario_sol: "",
-                    clave_sol: "",
-                    clave_certificado: "",
-                    modo: empresaData.modo || "prueba",
-                    fecha_expiracion_certificado: "",
-                    pse_autorizado: empresaData.pse_autorizado || false,
-                });
-            } catch (error) {
-                console.error("Error al obtener la empresa:", error);
-                setErrors({ fetch: "Error al cargar los datos de la empresa" });
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchData();
-    }, []);
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    mode: "onChange",
+    defaultValues,
+  });
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value, type } = e.target;
-        let processedValue: any = value;
+  const { register, handleSubmit, formState, reset, setError, watch, trigger } = form;
 
-        if (name === "ruc") {
-            processedValue = value.replace(/\D/g, "").slice(0, 11);
-        }
-
-        if (type === "checkbox") {
-            processedValue = (e.target as HTMLInputElement).checked;
-        }
-
-        setFormData({ ...formData, [name]: processedValue });
-        if (errors[name]) setErrors({ ...errors, [name]: "" });
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      setServerError(null);
+      try {
+        const data = await getEmpresaActual();
+        setEmpresa(data);
+        const normalized = buildFormValues(data);
+        setInitialValues(normalized);
+        reset(normalized);
+        await trigger();
+      } catch (error: any) {
+        setServerError(error?.response?.data?.message || "No se pudo cargar la empresa.");
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
+    load();
+  }, [reset, trigger]);
 
-            if (!file.type.startsWith('image/')) {
-                setErrors({ ...errors, logo: "Solo se permiten archivos de imagen" });
-                return;
-            }
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    setSaving(true);
+    setServerError(null);
 
-            if (file.size > 2048000) {
-                setErrors({ ...errors, logo: "El archivo no debe superar 2MB" });
-                return;
-            }
-
-            setLogoFile(file);
-
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setLogoPreview(reader.result as string);
-            };
-            reader.readAsDataURL(file);
-
-            if (errors.logo) {
-                setErrors({ ...errors, logo: "" });
-            }
-        }
+    const payload: Partial<Empresa> = {
+      ...values,
+      email: values.email || undefined,
+      telefono: values.telefono || undefined,
+      direccion_fiscal: values.direccion_fiscal || undefined,
+      departamento: values.departamento || undefined,
+      provincia: values.provincia || undefined,
+      distrito: values.distrito || undefined,
+      serie_factura: values.serie_factura || undefined,
+      serie_boleta: values.serie_boleta || undefined,
     };
 
-    const handleCertificadoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-
-            if (!file.name.endsWith('.pfx')) {
-                setErrors({ ...errors, certificado: "Solo se permiten archivos .pfx" });
-                return;
-            }
-
-            if (file.size > 5242880) { // 5MB
-                setErrors({ ...errors, certificado: "El archivo no debe superar 5MB" });
-                return;
-            }
-
-            setCertificadoFile(file);
-
-            if (errors.certificado) {
-                setErrors({ ...errors, certificado: "" });
-            }
-        }
-    };
-
-    const validateForm = () => {
-        const newErrors: Record<string, string> = {};
-        const hasAnyChange =
-            formData.ruc ||
-            formData.razon_social ||
-            formData.email ||
-            formData.direccion ||
-            formData.telefono ||
-            formData.usuario_sol ||
-            formData.clave_sol ||
-            formData.clave_certificado ||
-            formData.fecha_expiracion_certificado ||
-            logoFile ||
-            certificadoFile;
-
-        if (!hasAnyChange) {
-            newErrors.submit = "Debe modificar al menos un campo";
-            setErrors(newErrors);
-            return false;
-        }
-
-        if (formData.ruc && formData.ruc.length !== 11) {
-            newErrors.ruc = "El RUC debe tener 11 dígitos";
-        }
-
-        if (formData.razon_social && formData.razon_social.trim() === "") {
-            newErrors.razon_social = "La razón social no puede estar vacía";
-        }
-
-        if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-            newErrors.email = "Ingrese un correo válido";
-        }
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!validateForm()) return;
-        setSaving(true);
-        setShowSuccess(false);
-        try {
-            const formDataToSend = new FormData();
-
-            const rucToSend = formData.ruc
-                ? formData.ruc.padStart(11, "0")
-                : rucOriginal;
-
-            if (rucToSend.length !== 11) {
-                throw new Error("El RUC debe tener exactamente 11 dígitos.");
-            }
-
-            formDataToSend.append("ruc", rucToSend);
-
-            if (formData.razon_social) {
-                formDataToSend.append("razon_social", formData.razon_social);
-            }
-            if (formData.direccion) {
-                formDataToSend.append("direccion", formData.direccion);
-            }
-            if (formData.telefono) {
-                formDataToSend.append("telefono", formData.telefono);
-            }
-            if (formData.email) {
-                formDataToSend.append("email", formData.email);
-            }
-
-            // Campos SUNAT
-            if (formData.usuario_sol) {
-                formDataToSend.append("usuario_sol", formData.usuario_sol);
-            }
-            if (formData.clave_sol) {
-                formDataToSend.append("clave_sol", formData.clave_sol);
-            }
-            if (formData.clave_certificado) {
-                formDataToSend.append("clave_certificado", formData.clave_certificado);
-            }
-            if (formData.modo) {
-                formDataToSend.append("modo", formData.modo);
-            }
-            if (formData.fecha_expiracion_certificado) {
-                formDataToSend.append("fecha_expiracion_certificado", formData.fecha_expiracion_certificado);
-            }
-            formDataToSend.append("pse_autorizado", formData.pse_autorizado ? "1" : "0");
-
-            if (logoFile) {
-                formDataToSend.append("logo", logoFile);
-            }
-
-            if (certificadoFile) {
-                formDataToSend.append("certificado_digital", certificadoFile);
-            }
-
-            await updateEmpresa(empresa.id!, formDataToSend);
-
-            const empresaId = empresa.id;
-            let empresaActualizada;
-            if (empresaId) {
-                empresaActualizada = await getEmpresaById(empresaId);
-            } else {
-                empresaActualizada = await getEmpresa();
-            }
-            setEmpresa({ ...empresaActualizada });
-            setRucOriginal(empresaActualizada.ruc || "");
-
-            setFormData({
-                ruc: "",
-                razon_social: "",
-                direccion: "",
-                telefono: "",
-                email: "",
-                usuario_sol: "",
-                clave_sol: "",
-                clave_certificado: "",
-                modo: empresaActualizada.modo || "prueba",
-                fecha_expiracion_certificado: "",
-                pse_autorizado: empresaActualizada.pse_autorizado || false,
-            });
-            setLogoFile(null);
-            setLogoPreview(null);
-            setCertificadoFile(null);
-
-            setShowSuccess(true);
-            setTimeout(() => setShowSuccess(false), 3000);
-        } catch (error: any) {
-            console.error("Error al actualizar la empresa:", error);
-            setErrors({
-                submit:
-                    error.message ||
-                    "Error al guardar los cambios. Asegúrate de que el RUC tenga 11 dígitos.",
-            });
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
-                <div className="flex flex-col items-center gap-4">
-                    <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
-                    <p className="text-slate-600 font-medium">Cargando datos de empresa...</p>
-                </div>
-            </div>
-        );
+    try {
+      const updated = await actualizarEmpresaActual(payload);
+      setEmpresa(updated);
+      const normalized = buildFormValues(updated);
+      setInitialValues(normalized);
+      reset(normalized);
+      toast.success("Cambios guardados correctamente");
+    } catch (error: any) {
+      if (error?.response?.data?.errors) {
+        Object.entries(error.response.data.errors).forEach(([field, messages]) => {
+          const message = Array.isArray(messages) ? messages[0] : (messages as string);
+          setError(field as any, { message });
+        });
+      }
+      setServerError(error?.response?.data?.message || "No pudimos guardar los cambios");
+    } finally {
+      setSaving(false);
     }
+  };
 
-    const logoUrl = (empresa as any).logo_url || (empresa as any).logo;
+  const handleRestore = () => {
+    reset(initialValues);
+    toast.success("Datos restaurados desde el servidor");
+  };
 
-    return (
-        <div className="grid lg:grid-cols-3 gap-6">
-            {/* Columna principal - Formulario */}
-            <div className="lg:col-span-2 space-y-6">
-                {/* Título General */}
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                        <Building2 className="w-7 h-7 text-blue-600" />
-                        Datos Generales
-                    </h1>
-                </div>
+  const handleLogoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files?.length) return;
 
-                {/* Alertas */}
-                {errors.fetch && (
-                    <div className="p-4 bg-red-50 border border-red-200 rounded-sm flex items-center gap-3">
-                        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-                        <p className="text-red-800 font-medium">{errors.fetch}</p>
-                    </div>
-                )}
-                {showSuccess && (
-                    <div className="p-4 bg-green-50 border border-green-200 rounded-sm flex items-center gap-3 animate-pulse">
-                        <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
-                        <p className="text-green-800 font-medium">
-                            ¡Cambios guardados exitosamente!
-                        </p>
-                    </div>
-                )}
-                {errors.submit && (
-                    <div className="p-4 bg-red-50 border border-red-200 rounded-sm flex items-center gap-3">
-                        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-                        <p className="text-red-800 font-medium">{errors.submit}</p>
-                    </div>
-                )}
+    const file = event.target.files[0];
+    const previewUrl = URL.createObjectURL(file);
+    setLogoPreview(previewUrl);
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Card: Información de la Empresa */}
-                    <div className="bg-white rounded-sm border border-slate-300 overflow-hidden">
-                        <div className="bg-blue-100 px-6 py-4">
-                            <h2 className="text-lg font-semibold text-black flex items-center gap-2">
-                                <Building2 className="w-5 h-5" />
-                                Información de la Empresa
-                            </h2>
-                        </div>
+    setUploadingLogo(true);
+    setServerError(null);
+    try {
+      const { logoUrl, empresa: updatedEmpresa } = await subirLogoEmpresa(file);
+      setEmpresa(updatedEmpresa);
+      toast.success("Logo actualizado");
+      if (logoUrl) {
+        setLogoPreview(logoUrl);
+      }
+    } catch (error: any) {
+      setServerError(error?.response?.data?.message || "No pudimos subir el logo");
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
 
-                        <div className="p-6">
-                            <div className="grid md:grid-cols-2 gap-6">
-                                {/* RUC */}
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-semibold text-slate-700">
-                                        RUC <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <FileText className="w-5 h-5 text-slate-400" />
-                                        </div>
-                                        <input
-                                            type="text"
-                                            name="ruc"
-                                            value={formData.ruc || ""}
-                                            onChange={handleChange}
-                                            maxLength={11}
-                                            placeholder={empresa.ruc || "20123456789"}
-                                            className={`w-full pl-12 pr-4 py-3 border-1 rounded-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-400 placeholder:italic placeholder:opacity-70 ${errors.ruc ? "border-red-300 bg-red-50" : "border-slate-300 hover:border-slate-400"
-                                                }`}
-                                        />
-                                    </div>
-                                    {errors.ruc && (
-                                        <p className="text-sm text-red-600 flex items-center gap-1">
-                                            <AlertCircle className="w-4 h-4" />
-                                            {errors.ruc}
-                                        </p>
-                                    )}
-                                </div>
+  const currentLogo = useMemo(() => {
+    if (logoPreview) return logoPreview;
+    if (empresa?.logo_url) return empresa.logo_url;
+    if ((empresa as any)?.logoUrl) return (empresa as any).logoUrl;
+    return null;
+  }, [empresa, logoPreview]);
 
-                                {/* Razón Social */}
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-semibold text-slate-700">
-                                        Razón Social <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <Building2 className="w-5 h-5 text-slate-400" />
-                                        </div>
-                                        <input
-                                            type="text"
-                                            name="razon_social"
-                                            value={formData.razon_social || ""}
-                                            onChange={handleChange}
-                                            placeholder={empresa.razon_social || "Mi Empresa SAC"}
-                                            className={`w-full pl-12 pr-4 py-3 border-1 rounded-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-400 placeholder:opacity-60 ${errors.razon_social ? "border-red-300 bg-red-50" : "border-slate-300 hover:border-slate-400"
-                                                }`}
-                                        />
-                                    </div>
-                                    {errors.razon_social && (
-                                        <p className="text-sm text-red-600 flex items-center gap-1">
-                                            <AlertCircle className="w-4 h-4" />
-                                            {errors.razon_social}
-                                        </p>
-                                    )}
-                                </div>
-
-                                {/* Dirección */}
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-semibold text-slate-700">
-                                        Dirección Fiscal
-                                    </label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <MapPin className="w-5 h-5 text-slate-400" />
-                                        </div>
-                                        <input
-                                            type="text"
-                                            name="direccion"
-                                            value={formData.direccion || ""}
-                                            onChange={handleChange}
-                                            placeholder={empresa.direccion || "Av. Principal 123, Lima"}
-                                            className="w-full pl-12 pr-4 py-3 border-1 border-slate-300 rounded-sm hover:border-slate-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-400 placeholder:opacity-60"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Teléfono */}
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-semibold text-slate-700">
-                                        Teléfono
-                                    </label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <Phone className="w-5 h-5 text-slate-400" />
-                                        </div>
-                                        <input
-                                            type="tel"
-                                            name="telefono"
-                                            value={formData.telefono || ""}
-                                            onChange={handleChange}
-                                            placeholder={empresa.telefono || "987654321"}
-                                            className="w-full pl-12 pr-4 py-3 border-1 border-slate-300 rounded-sm hover:border-slate-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-400 placeholder:opacity-60"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Email */}
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-semibold text-slate-700">
-                                        Correo Electrónico <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <Mail className="w-5 h-5 text-slate-400" />
-                                        </div>
-                                        <input
-                                            type="email"
-                                            name="email"
-                                            value={formData.email || ""}
-                                            onChange={handleChange}
-                                            placeholder={empresa.email || "contacto@miempresa.com"}
-                                            className={`w-full pl-12 pr-4 py-3 border-1 rounded-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-400 placeholder:opacity-60 ${errors.email ? "border-red-300 bg-red-50" : "border-slate-300 hover:border-slate-400"
-                                                }`}
-                                        />
-                                    </div>
-                                    {errors.email && (
-                                        <p className="text-sm text-red-600 flex items-center gap-1">
-                                            <AlertCircle className="w-4 h-4" />
-                                            {errors.email}
-                                        </p>
-                                    )}
-                                </div>
-
-                                {/* Logo */}
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-semibold text-slate-700">
-                                        Logo de la Empresa
-                                    </label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <ImageIcon className="w-5 h-5 text-slate-400" />
-                                        </div>
-                                        <input
-                                            type="file"
-                                            name="logo"
-                                            accept="image/jpeg,image/png,image/jpg,image/gif,image/svg+xml,image/webp"
-                                            onChange={handleLogoChange}
-                                            className={`w-full pl-12 pr-4 py-3 border-1 rounded-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.logo ? "border-red-300 bg-red-50" : "border-slate-300 hover:border-slate-400"
-                                                }`}
-                                        />
-                                    </div>
-                                    {errors.logo && (
-                                        <p className="text-sm text-red-600 flex items-center gap-1">
-                                            <AlertCircle className="w-4 h-4" />
-                                            {errors.logo}
-                                        </p>
-                                    )}
-                                    {logoPreview && (
-                                        <div className="mt-2">
-                                            <p className="text-xs text-slate-500 mb-1">Vista previa:</p>
-                                            <img
-                                                src={logoPreview}
-                                                alt="Preview"
-                                                className="w-32 h-32 object-contain border border-slate-300 rounded-sm"
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Card: Configuración SUNAT */}
-                    <div className="bg-white rounded-sm border border-slate-300 overflow-hidden">
-                        <div className="bg-green-100 px-6 py-4">
-                            <h2 className="text-lg font-semibold text-black flex items-center gap-2">
-                                <Shield className="w-5 h-5" />
-                                Configuración SUNAT
-                            </h2>
-                        </div>
-
-                        <div className="p-6">
-                            <div className="grid md:grid-cols-2 gap-6">
-                                {/* Certificado digital */}
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-semibold text-slate-700">
-                                        Certificado Digital (.pfx)
-                                    </label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <Key className="w-5 h-5 text-slate-400" />
-                                        </div>
-                                        <input
-                                            type="file"
-                                            name="certificado_digital"
-                                            accept=".pfx"
-                                            onChange={handleCertificadoChange}
-                                            className={`w-full pl-12 pr-4 py-3 border-1 rounded-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.certificado ? "border-red-300 bg-red-50" : "border-slate-300 hover:border-slate-400"
-                                                }`}
-                                        />
-                                    </div>
-                                    {errors.certificado && (
-                                        <p className="text-sm text-red-600 flex items-center gap-1">
-                                            <AlertCircle className="w-4 h-4" />
-                                            {errors.certificado}
-                                        </p>
-                                    )}
-                                    {certificadoFile && (
-                                        <p className="text-xs text-green-600 flex items-center gap-1">
-                                            <CheckCircle2 className="w-4 h-4" />
-                                            {certificadoFile.name}
-                                        </p>
-                                    )}
-                                </div>
-
-                                {/* Clave del certificado */}
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-semibold text-slate-700">
-                                        Clave del Certificado
-                                    </label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <Key className="w-5 h-5 text-slate-400" />
-                                        </div>
-                                        <input
-                                            type="password"
-                                            name="clave_certificado"
-                                            value={formData.clave_certificado || ""}
-                                            onChange={handleChange}
-                                            placeholder="••••••••"
-                                            className="w-full pl-12 pr-4 py-3 border-1 border-slate-300 rounded-sm hover:border-slate-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-400"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Usuario SOL */}
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-semibold text-slate-700">
-                                        Usuario SOL
-                                    </label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <Mail className="w-5 h-5 text-slate-400" />
-                                        </div>
-                                        <input
-                                            type="text"
-                                            name="usuario_sol"
-                                            value={formData.usuario_sol || ""}
-                                            onChange={handleChange}
-                                            placeholder={empresa.usuario_sol || "MODDATOS"}
-                                            className="w-full pl-12 pr-4 py-3 border-1 border-slate-300 rounded-sm hover:border-slate-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-400 placeholder:opacity-60"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Clave SOL */}
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-semibold text-slate-700">
-                                        Clave SOL
-                                    </label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <Key className="w-5 h-5 text-slate-400" />
-                                        </div>
-                                        <input
-                                            type="password"
-                                            name="clave_sol"
-                                            value={formData.clave_sol || ""}
-                                            onChange={handleChange}
-                                            placeholder="••••••••"
-                                            className="w-full pl-12 pr-4 py-3 border-1 border-slate-300 rounded-sm hover:border-slate-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-400"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Modo */}
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-semibold text-slate-700">
-                                        Modo de Operación
-                                    </label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <Shield className="w-5 h-5 text-slate-400" />
-                                        </div>
-                                        <select
-                                            name="modo"
-                                            value={formData.modo || empresa.modo || "prueba"}
-                                            onChange={handleChange}
-                                            className="w-full pl-12 pr-4 py-3 border-1 border-slate-300 rounded-sm hover:border-slate-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
-                                        >
-                                            <option value="prueba">Prueba</option>
-                                            <option value="produccion">Producción</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                {/* Fecha expiración certificado */}
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-semibold text-slate-700">
-                                        Fecha de Expiración del Certificado
-                                    </label>
-                                    <input
-                                        type="date"
-                                        name="fecha_expiracion_certificado"
-                                        value={formData.fecha_expiracion_certificado || ""}
-                                        onChange={handleChange}
-                                        className="w-full px-4 py-3 border-1 border-slate-300 rounded-sm hover:border-slate-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    />
-                                </div>
-
-                                {/* PSE autorizado */}
-                                <div className="flex items-center gap-3 mt-6">
-                                    <input
-                                        type="checkbox"
-                                        name="pse_autorizado"
-                                        checked={!!formData.pse_autorizado}
-                                        onChange={handleChange}
-                                        className="h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-2 focus:ring-blue-500"
-                                    />
-                                    <label className="text-sm font-semibold text-slate-700">
-                                        PSE Autorizado
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Botón de guardar */}
-                    <div className="bg-slate-50 px-8 py-6 border border-slate-300 rounded-sm flex justify-between items-center">
-                        <p className="text-sm text-slate-600">
-                            <span className="text-red-500">*</span> Campos obligatorios -
-                            Deje en blanco los campos que no desea modificar
-                        </p>
-                        <button
-                            type="submit"
-                            disabled={saving}
-                            className="group relative px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-sm hover:from-blue-700 hover:to-blue-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center gap-2"
-                        >
-                            {saving ? (
-                                <>
-                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                    <span>Guardando...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <Save className="w-5 h-5" />
-                                    <span>Guardar Cambios</span>
-                                </>
-                            )}
-                        </button>
-                    </div>
-                </form>
-
-                {/* Info Card */}
-                <div className="bg-blue-50 border border-blue-200 rounded-sm p-6">
-                    <div className="flex gap-3">
-                        <div className="flex-shrink-0">
-                            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                                <Building2 className="w-5 h-5 text-white" />
-                            </div>
-                        </div>
-                        <div>
-                            <h3 className="font-semibold text-blue-900 mb-1">
-                                Información importante
-                            </h3>
-                            <p className="text-sm text-blue-800 leading-relaxed">
-                                Los datos de la empresa se utilizarán para generar los
-                                comprobantes electrónicos que se enviarán a SUNAT. Asegúrate de
-                                que la información sea correcta y esté actualizada.
-                            </p>
-                        </div>
-                    </div>
-                </div>
+  const renderSkeleton = () => (
+    <div className="space-y-4">
+      {[1, 2, 3].map((key) => (
+        <div key={key} className="rounded-xl bg-white p-6 shadow-sm">
+          <div className="flex gap-4">
+            <div className="h-10 w-10 rounded-lg bg-slate-100" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 w-40 rounded bg-slate-100" />
+              <div className="h-3 w-64 rounded bg-slate-100" />
             </div>
-
-            {/* Columna lateral - Vista previa de datos */}
-            <div className="lg:col-span-1">
-                <div className="bg-white rounded-sm border border-slate-300 overflow-hidden sticky top-4">
-                    <div className="bg-slate-100 px-4 py-3 border-b border-slate-200">
-                        <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                            <Eye className="w-4 h-4" />
-                            Datos Actuales
-                        </h3>
-                    </div>
-
-                    <div className="p-4 space-y-4">
-                        {logoUrl && (
-                            <div className="flex justify-center pb-4 border-b border-slate-200">
-                                <img
-                                    src={logoUrl}
-                                    alt="Logo de la Empresa"
-                                    className="w-32 h-32 object-contain rounded-md"
-                                />
-                            </div>
-                        )}
-
-                        <div>
-                            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
-                                RUC
-                            </label>
-                            <p className="text-sm text-slate-900 font-medium">
-                                {empresa.ruc || (
-                                    <span className="text-slate-400 italic">No especificado</span>
-                                )}
-                            </p>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
-                                Razón Social
-                            </label>
-                            <p className="text-sm text-slate-900 font-medium">
-                                {empresa.razon_social || (
-                                    <span className="text-slate-400 italic">No especificado</span>
-                                )}
-                            </p>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
-                                Dirección Fiscal
-                            </label>
-                            <p className="text-sm text-slate-900 leading-relaxed">
-                                {empresa.direccion || (
-                                    <span className="text-slate-400 italic">No especificado</span>
-                                )}
-                            </p>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
-                                Teléfono
-                            </label>
-                            <p className="text-sm text-slate-900">
-                                {empresa.telefono || (
-                                    <span className="text-slate-400 italic">No especificado</span>
-                                )}
-                            </p>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
-                                Correo Electrónico
-                            </label>
-                            <p className="text-sm text-slate-900 break-words">
-                                {empresa.email || (
-                                    <span className="text-slate-400 italic">No especificado</span>
-                                )}
-                            </p>
-                        </div>
-
-                        <div className="border-t border-slate-200 pt-4">
-                            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
-                                Usuario SOL
-                            </label>
-                            <p className="text-sm text-slate-900">
-                                {empresa.usuario_sol || (
-                                    <span className="text-slate-400 italic">No configurado</span>
-                                )}
-                            </p>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
-                                Modo
-                            </label>
-                            <p className="text-sm text-slate-900">
-                                {empresa.modo === 'produccion' ? (
-                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                        Producción
-                                    </span>
-                                ) : (
-                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                        Prueba
-                                    </span>
-                                )}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="bg-slate-50 px-4 py-3 border-t border-slate-200">
-                        <p className="text-xs text-slate-500 text-center">
-                            Los cambios se reflejan al guardar
-                        </p>
-                    </div>
-                </div>
-            </div>
+          </div>
+          <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((field) => (
+              <div key={field} className="h-12 rounded-md bg-slate-100" />
+            ))}
+          </div>
         </div>
-    );
+      ))}
+    </div>
+  );
+
+  if (loading) {
+    return renderSkeleton();
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 rounded-xl bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Configuración</p>
+            <h1 className="text-2xl font-bold text-slate-900">Configuración de Empresa</h1>
+            <p className="text-sm text-slate-600">
+              Actualiza los datos fiscales y preferencias de facturación.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={saving}
+              onClick={handleRestore}
+            >
+              <RefreshCcw className="size-4" />
+              Restaurar
+            </Button>
+            <Button
+              type="submit"
+              form="empresa-config-form"
+              disabled={saving || !formState.isValid}
+            >
+              {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+              <span>Guardar cambios</span>
+            </Button>
+          </div>
+        </div>
+        {serverError && (
+          <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800">
+            <AlertCircle className="size-4" />
+            <span>{serverError}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="overflow-hidden rounded-xl bg-white shadow-sm">
+        <div className="flex flex-wrap gap-2 border-b border-slate-100 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-600">
+          {[
+            { id: "general", label: "Datos generales", icon: Building2 },
+            { id: "facturacion", label: "Facturación", icon: ShieldCheck },
+            { id: "preferencias", label: "Preferencias", icon: Settings2 },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center gap-2 rounded-lg px-3 py-2 transition ${
+                activeTab === tab.id
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-slate-600 hover:bg-white/80"
+              }`}
+            >
+              <tab.icon className="size-4" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <form id="empresa-config-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6 p-6">
+          {activeTab === "general" && (
+            <div className="grid gap-6 lg:grid-cols-3">
+              <div className="lg:col-span-2 space-y-6">
+                <div className="rounded-xl border border-slate-100 p-5 shadow-sm">
+                  <div className="flex items-center gap-2 pb-4">
+                    <div className="flex size-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                      <Building2 className="size-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-slate-500">Identidad</p>
+                      <p className="text-base font-semibold text-slate-900">Datos generales</p>
+                    </div>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field label="Razón social" required error={formState.errors.razon_social?.message}>
+                      <Input placeholder="Mi Empresa SAC" {...register("razon_social")}/>
+                    </Field>
+                    <Field label="Nombre comercial" error={formState.errors.nombre_comercial?.message}>
+                      <Input placeholder="Marca comercial" {...register("nombre_comercial")}/>
+                    </Field>
+                    <Field label="RUC" required error={formState.errors.ruc?.message}>
+                      <Input placeholder="20123456789" maxLength={11} {...register("ruc")} />
+                    </Field>
+                    <Field label="Correo" error={formState.errors.email?.message}>
+                      <Input placeholder="contacto@empresa.com" type="email" {...register("email")} />
+                    </Field>
+                    <Field label="Teléfono" error={formState.errors.telefono?.message}>
+                      <Input placeholder="987654321" {...register("telefono")} />
+                    </Field>
+                    <Field label="Dirección fiscal" error={formState.errors.direccion_fiscal?.message}>
+                      <Input placeholder="Av. Siempre Viva 123" {...register("direccion_fiscal")} />
+                    </Field>
+                    <Field label="Departamento" error={formState.errors.departamento?.message}>
+                      <Input placeholder="Lima" {...register("departamento")} />
+                    </Field>
+                    <Field label="Provincia" error={formState.errors.provincia?.message}>
+                      <Input placeholder="Lima" {...register("provincia")} />
+                    </Field>
+                    <Field label="Distrito" error={formState.errors.distrito?.message}>
+                      <Input placeholder="Miraflores" {...register("distrito")} />
+                    </Field>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="rounded-xl border border-slate-100 p-5 shadow-sm">
+                  <div className="flex items-center gap-2 pb-4">
+                    <div className="flex size-10 items-center justify-center rounded-lg bg-slate-50 text-slate-600">
+                      <ImageIcon className="size-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-slate-500">Identidad visual</p>
+                      <p className="text-base font-semibold text-slate-900">Logo</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className="flex size-20 items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-200 bg-slate-50">
+                      {currentLogo ? (
+                        <img src={currentLogo} alt="Logo" className="h-full w-full object-contain" />
+                      ) : (
+                        <ImageIcon className="size-8 text-slate-400" />
+                      )}
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <Label className="text-sm font-medium text-slate-700">Actualizar logo</Label>
+                      <Input type="file" accept="image/*" onChange={handleLogoChange} disabled={uploadingLogo} />
+                      <p className="text-xs text-slate-500">Formatos: JPG, PNG, SVG o WebP. Máx 2MB.</p>
+                      {uploadingLogo && (
+                        <div className="flex items-center gap-2 text-xs text-blue-600">
+                          <Loader2 className="size-3 animate-spin" /> Subiendo logo...
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-100 p-5 shadow-sm">
+                  <div className="flex items-center gap-2 pb-3">
+                    <div className="flex size-10 items-center justify-center rounded-lg bg-green-50 text-green-600">
+                      <CheckCircle2 className="size-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-slate-500">Estado</p>
+                      <p className="text-base font-semibold text-slate-900">Resumen rápido</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2 text-sm text-slate-700">
+                    <p><span className="font-semibold">Moneda:</span> {watch("moneda")}</p>
+                    <p><span className="font-semibold">IGV:</span> {watch("igv_porcentaje")}%</p>
+                    <p><span className="font-semibold">Serie Factura:</span> {watch("serie_factura") || "—"}</p>
+                    <p><span className="font-semibold">Serie Boleta:</span> {watch("serie_boleta") || "—"}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "facturacion" && (
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div className="rounded-xl border border-slate-100 p-5 shadow-sm space-y-4">
+                <SectionTitle title="Facturación" subtitle="Preferencias tributarias" />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Moneda" required error={formState.errors.moneda?.message}>
+                    <select
+                      {...register("moneda")}
+                      className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
+                    >
+                      <option value="PEN">Soles (PEN)</option>
+                      <option value="USD">Dólares (USD)</option>
+                    </select>
+                  </Field>
+                  <Field label="IGV %" required error={formState.errors.igv_porcentaje?.message}>
+                    <Input type="number" step="0.01" {...register("igv_porcentaje", { valueAsNumber: true })} />
+                  </Field>
+                  <Field label="Incluye IGV por defecto" error={formState.errors.incluye_igv_por_defecto?.message}>
+                    <label className="flex cursor-pointer items-center gap-3">
+                      <input
+                        type="checkbox"
+                        className="size-4 accent-blue-600"
+                        {...register("incluye_igv_por_defecto")}
+                      />
+                      <span className="text-sm text-slate-700">Aplicar IGV automáticamente</span>
+                    </label>
+                  </Field>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-100 p-5 shadow-sm space-y-4">
+                <SectionTitle title="Series y numeración" subtitle="Control de comprobantes" />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Serie factura" error={formState.errors.serie_factura?.message}>
+                    <Input placeholder="F001" {...register("serie_factura")} />
+                  </Field>
+                  <Field label="Serie boleta" error={formState.errors.serie_boleta?.message}>
+                    <Input placeholder="B001" {...register("serie_boleta")} />
+                  </Field>
+                  <Field label="Número actual factura" error={formState.errors.numero_factura_actual?.message}>
+                    <Input type="number" min={0} {...register("numero_factura_actual", { valueAsNumber: true })} />
+                  </Field>
+                  <Field label="Número actual boleta" error={formState.errors.numero_boleta_actual?.message}>
+                    <Input type="number" min={0} {...register("numero_boleta_actual", { valueAsNumber: true })} />
+                  </Field>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "preferencias" && (
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div className="rounded-xl border border-slate-100 p-5 shadow-sm space-y-4">
+                <SectionTitle title="Formato" subtitle="Fechas y decimales" />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Formato de fecha" required error={formState.errors.formato_fecha?.message}>
+                    <select
+                      {...register("formato_fecha")}
+                      className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
+                    >
+                      <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                      <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                      <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                    </select>
+                  </Field>
+                  <Field label="Decimales" required error={formState.errors.decimales?.message}>
+                    <Input type="number" min={0} max={6} {...register("decimales", { valueAsNumber: true })} />
+                  </Field>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-100 p-5 shadow-sm space-y-4">
+                <SectionTitle title="Zona horaria" subtitle="Hora local del negocio" />
+                <Field label="Zona horaria" required error={formState.errors.zona_horaria?.message}>
+                  <select
+                    {...register("zona_horaria")}
+                    className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
+                  >
+                    {zonasHorarias.map((zone) => (
+                      <option key={zone} value={zone}>
+                        {zone}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+            <div className="flex items-center gap-2 text-sm text-slate-600">
+              <Upload className="size-4" />
+              <span>Guarda tus cambios para que entren en vigencia.</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" disabled={saving} onClick={handleRestore}>
+                <RefreshCcw className="size-4" /> Restaurar
+              </Button>
+              <Button type="submit" disabled={saving || !formState.isValid}>
+                {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                <span>Guardar cambios</span>
+              </Button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</p>
+      <p className="text-sm text-slate-600">{subtitle}</p>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  children,
+  error,
+  required,
+}: {
+  label: string;
+  children: React.ReactNode;
+  error?: string;
+  required?: boolean;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-sm font-medium text-slate-700">
+        {label} {required && <span className="text-red-500">*</span>}
+      </Label>
+      {children}
+      {error && (
+        <p className="flex items-center gap-1 text-xs text-red-600">
+          <AlertCircle className="size-3" />
+          {error}
+        </p>
+      )}
+    </div>
+  );
 }
