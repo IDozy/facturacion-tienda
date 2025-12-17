@@ -45,8 +45,12 @@ function App() {
 
           {/* Rutas de configuración - usando minúsculas normalizadas */}
           <Route
-            path="/configuracion/empresa"
+            path="/dashboard/configuracion/empresa"
             element={withProtectedLayout(<EmpresaPage />, ['admin', 'administrador'])}
+          />
+          <Route
+            path="/configuracion/empresa"
+            element={<Navigate to="/dashboard/configuracion/empresa" replace />}
           />
 
           <Route

@@ -31,6 +31,7 @@ import {
   ListOrdered,
 } from 'lucide-react';
 import { authService } from '../services/auth';
+import { Toaster } from 'react-hot-toast';
 
 
 
@@ -113,7 +114,7 @@ const menuConfig: MenuItem[] = [
     icon: Settings,
     roles: ['admin', 'administrador'],
     items: [
-      { path: '/configuracion/empresa', label: 'Empresa', icon: Building2, roles: ['admin', 'administrador'] },
+      { path: '/dashboard/configuracion/empresa', label: 'Empresa', icon: Building2, roles: ['admin', 'administrador'] },
       { path: '/configuracion/usuarios', label: 'Usuarios', icon: UserCog, roles: ['admin', 'administrador'] },
       { path: '/configuracion/parametroscontables', label: 'Parametros Contables', icon: Settings, roles: ['admin', 'administrador'] },
       { path: '/configuracion/almacenes', label: 'Almacenes', icon: Warehouse, roles: ['admin', 'administrador'] },
@@ -376,6 +377,7 @@ export default function Layout({ children }: LayoutProps) {
         {/* Contenido dinámico */}
         <div className="p-4- md:p-8">{children}</div>
       </main>
+      <Toaster position="top-right" toastOptions={{ duration: 3500 }} />
     </div>
   );
 }

@@ -15,11 +15,26 @@ class Empresa extends Model
 
     protected $fillable = [
         'razon_social',
+        'nombre_comercial',
         'ruc',
         'direccion',
+        'direccion_fiscal',
+        'departamento',
+        'provincia',
+        'distrito',
         'telefono',
         'email',
         'logo',
+        'moneda',
+        'igv_porcentaje',
+        'incluye_igv_por_defecto',
+        'serie_factura',
+        'serie_boleta',
+        'numero_factura_actual',
+        'numero_boleta_actual',
+        'formato_fecha',
+        'decimales',
+        'zona_horaria',
         'certificado_digital',
         'clave_certificado',
         'usuario_sol',
@@ -34,6 +49,11 @@ class Empresa extends Model
     protected $casts = [
         'fecha_expiracion_certificado' => 'date',
         'pse_autorizado' => 'boolean',
+        'incluye_igv_por_defecto' => 'boolean',
+        'igv_porcentaje' => 'decimal:2',
+        'numero_factura_actual' => 'integer',
+        'numero_boleta_actual' => 'integer',
+        'decimales' => 'integer',
     ];
     protected $hidden = [
         'certificado_digital',
