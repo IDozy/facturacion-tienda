@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, LogOut, Menu, Receipt, X } from 'lucide-react';
 import { authService } from '../services/auth';
 import { Toaster } from 'react-hot-toast';
-
 import { navConfig, type NavItemConfig } from '../config/navConfig';
 
 interface LayoutProps {

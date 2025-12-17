@@ -1,6 +1,5 @@
 import { ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-
 import Layout from './components/Layout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
@@ -37,7 +36,7 @@ function App() {
             />
           ))}
 
-          {/* Redirecciones (legacy) */}
+          {/* Redirecciones */}
           <Route
             path="/configuracion/empresa"
             element={<Navigate to="/dashboard/configuracion/empresa" replace />}
