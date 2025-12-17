@@ -1,7 +1,8 @@
-// components/ModalUsuario.tsx
-
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Eye, EyeOff, Loader, X } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import type { CreateUsuarioDTO, Rol, UpdateUsuarioDTO, Usuario } from '@/types/User';
 import { getRolId, normalizeRolNombre } from '@/utils/usuarioHelpers';
 
@@ -15,6 +16,26 @@ interface ModalUsuarioProps {
 
 const TIPOS_DOCUMENTO = ['DNI', 'RUC', 'PASAPORTE'] as const;
 
+const buildSchema = (esEdicion: boolean) =>
+  z
+    .object({
+      nombre: z.string().min(2, 'Ingresa un nombre'),
+      email: z.string().email('Ingresa un email válido'),
+      password: esEdicion
+        ? z.string().min(8, 'Mínimo 8 caracteres').optional()
+        : z.string().min(8, 'Mínimo 8 caracteres'),
+      password_confirmation: z.string().optional(),
+      rol_id: z.number().min(1, 'Selecciona un rol'),
+      numero_documento: z.string().min(6, 'Documento requerido'),
+      tipo_documento: z.enum(TIPOS_DOCUMENTO),
+      telefono: z.string().optional(),
+      activo: z.boolean().default(true),
+    })
+    .refine((data) => !data.password || data.password === data.password_confirmation, {
+      message: 'Las contraseñas no coinciden',
+      path: ['password_confirmation'],
+    });
+
 export const ModalUsuario: React.FC<ModalUsuarioProps> = ({
   usuario,
   roles,
@@ -22,328 +43,255 @@ export const ModalUsuario: React.FC<ModalUsuarioProps> = ({
   onCerrar,
   loading,
 }) => {
+  const esEdicion = Boolean(usuario);
+  const schema = useMemo(() => buildSchema(esEdicion), [esEdicion]);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [passwordConfirmation, setPasswordConfirmation] = useState('');
-  const [formData, setFormData] = useState<CreateUsuarioDTO | UpdateUsuarioDTO>({
-    nombre: '',
-    email: '',
-    password: '',
-    rol_id: 0,
-    numero_documento: '',
-    tipo_documento: 'DNI',
-    telefono: '',
-    activo: true,
+
+  const {
+    register,
+    handleSubmit,
+    setError,
+    reset,
+    formState: { errors },
+  } = useForm<CreateUsuarioDTO | UpdateUsuarioDTO>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      nombre: '',
+      email: '',
+      password: '',
+      password_confirmation: '',
+      rol_id: 0,
+      numero_documento: '',
+      tipo_documento: 'DNI',
+      telefono: '',
+      activo: true,
+    },
   });
 
   useEffect(() => {
     if (usuario) {
       const rolId = getRolId(usuario) || 0;
-      
-      setFormData({
+      reset({
         nombre: usuario.nombre,
         email: usuario.email,
         password: '',
+        password_confirmation: '',
         rol_id: rolId,
         numero_documento: usuario.numero_documento,
         tipo_documento: usuario.tipo_documento,
         telefono: usuario.telefono,
         activo: usuario.activo,
       });
-      setPasswordConfirmation('');
     } else {
-      setFormData({
+      reset({
         nombre: '',
         email: '',
         password: '',
+        password_confirmation: '',
         rol_id: 0,
         numero_documento: '',
         tipo_documento: 'DNI',
         telefono: '',
         activo: true,
       });
-      setPasswordConfirmation('');
     }
-  }, [usuario]);
+  }, [usuario, reset]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validar que las contraseñas coincidan
-    if (!usuario && formData.password !== passwordConfirmation) {
-      alert('Las contraseñas no coinciden');
-      return;
+  const onSubmit = async (data: any) => {
+    try {
+      await onGuardar(data);
+    } catch (err: any) {
+      if (err && typeof err === 'object') {
+        Object.entries(err).forEach(([field, messages]) => {
+          if (Array.isArray(messages)) {
+            setError(field as any, { message: messages.join(', ') });
+          }
+        });
+      }
     }
-
-    if (usuario && formData.password && formData.password !== passwordConfirmation) {
-      alert('Las contraseñas no coinciden');
-      return;
-    }
-    
-    // Añadir password_confirmation al objeto que se enviará
-    const dataToSend = {
-      ...formData,
-      password_confirmation: passwordConfirmation,
-    };
-    
-    await onGuardar(dataToSend);
-  };
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value, type } = e.target as any;
-    setFormData({
-      ...formData,
-      [name]: type === 'checkbox' 
-        ? (e.target as HTMLInputElement).checked 
-        : name === 'rol_id'
-          ? Number(value)
-          : value,
-    });
-  };
-
-  const isFormValid = () => {
-    if (!usuario && !formData.password) return false;
-    if (!usuario && formData.password !== passwordConfirmation) return false;
-    if (usuario && formData.password && formData.password !== passwordConfirmation) return false;
-    if (!formData.nombre || !formData.email || !formData.rol_id) return false;
-    return true;
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="p-6 border-b sticky top-0 bg-white flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900">
-            {usuario ? 'Editar Usuario' : 'Nuevo Usuario'}
-          </h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+        <div className="sticky top-0 flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-gray-500">Usuarios</p>
+            <h2 className="text-xl font-semibold text-gray-900">
+              {usuario ? 'Editar usuario' : 'Nuevo usuario'}
+            </h2>
+          </div>
           <button
             onClick={onCerrar}
-            disabled={loading}
-            className="text-gray-500 hover:text-gray-700 transition disabled:opacity-50"
+            className="text-gray-500 transition hover:text-gray-700"
+            aria-label="Cerrar modal de usuario"
           >
-            <X className="w-5 h-5" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Contenido */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Nombre */}
-          <div>
-            <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 mb-1">
-              Nombre *
-            </label>
-            <input
-              id="nombre"
-              type="text"
-              name="nombre"
-              required
-              value={formData.nombre}
-              onChange={handleChange}
-              disabled={loading}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-              placeholder="Juan Pérez"
-            />
-          </div>
-
-          {/* Email */}
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email *
-            </label>
-            <input
-              id="email"
-              type="email"
-              name="email"
-              required
-              value={formData.email}
-              onChange={handleChange}
-              disabled={loading}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-              placeholder="juan@example.com"
-            />
-          </div>
-
-          {/* Contraseña */}
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              Contraseña {usuario ? '(opcional)' : '*'}
-            </label>
-            <div className="relative">
+        <form onSubmit={handleSubmit(onSubmit)} className="px-6 py-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Nombre completo *</label>
               <input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                name="password"
-                required={!usuario}
-                value={formData.password}
-                onChange={handleChange}
+                type="text"
+                {...register('nombre')}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                placeholder="Ej. Ana Fernández"
                 disabled={loading}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                placeholder={usuario ? 'Dejar vacío para mantener la actual' : '••••••'}
-                minLength={6}
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                disabled={loading}
-                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 transition disabled:opacity-50"
-              >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
+              {errors.nombre && <p className="text-xs text-red-600">{errors.nombre.message as string}</p>}
             </div>
-          </div>
 
-          {/* Confirmar Contraseña */}
-          {(formData.password || !usuario) && (
-            <div>
-              <label htmlFor="password_confirmation" className="block text-sm font-medium text-gray-700 mb-1">
-                Confirmar Contraseña *
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Correo electrónico *</label>
+              <input
+                type="email"
+                {...register('email')}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                placeholder="correo@empresa.com"
+                disabled={loading}
+              />
+              {errors.email && <p className="text-xs text-red-600">{errors.email.message as string}</p>}
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">
+                Contraseña {usuario ? '(opcional)' : '*'}
               </label>
               <div className="relative">
                 <input
-                  id="password_confirmation"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  name="password_confirmation"
-                  required={!usuario || !!formData.password}
-                  value={passwordConfirmation}
-                  onChange={(e) => setPasswordConfirmation(e.target.value)}
+                  type={showPassword ? 'text' : 'password'}
+                  {...register('password')}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  placeholder={usuario ? 'Dejar vacío para mantener la actual' : '••••••••'}
                   disabled={loading}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  placeholder="Repite la contraseña"
-                  minLength={6}
                 />
                 <button
                   type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  disabled={loading}
-                  className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 transition disabled:opacity-50"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-3 top-2 text-gray-500"
+                  aria-label="Mostrar u ocultar contraseña"
                 >
-                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              {formData.password && passwordConfirmation && formData.password !== passwordConfirmation && (
-                <p className="text-xs text-red-500 mt-1">Las contraseñas no coinciden</p>
+              {errors.password && <p className="text-xs text-red-600">{errors.password.message as string}</p>}
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Confirmar contraseña</label>
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  {...register('password_confirmation')}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  placeholder="Repite la contraseña"
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  className="absolute right-3 top-2 text-gray-500"
+                  aria-label="Mostrar u ocultar confirmación"
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {errors.password_confirmation && (
+                <p className="text-xs text-red-600">{errors.password_confirmation.message as string}</p>
               )}
             </div>
-          )}
 
-          {/* Tipo de Documento */}
-          <div>
-            <label htmlFor="tipo_documento" className="block text-sm font-medium text-gray-700 mb-1">
-              Tipo de Documento
-            </label>
-            <select
-              id="tipo_documento"
-              name="tipo_documento"
-              value={formData.tipo_documento}
-              onChange={handleChange}
-              disabled={loading}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-            >
-              {TIPOS_DOCUMENTO.map((tipo) => (
-                <option key={tipo} value={tipo}>
-                  {tipo}
-                </option>
-              ))}
-            </select>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Tipo de documento *</label>
+              <select
+                {...register('tipo_documento')}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                disabled={loading}
+              >
+                {TIPOS_DOCUMENTO.map((tipo) => (
+                  <option key={tipo} value={tipo}>
+                    {tipo}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Número de documento *</label>
+              <input
+                type="text"
+                {...register('numero_documento')}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                placeholder="00000000"
+                disabled={loading}
+              />
+              {errors.numero_documento && (
+                <p className="text-xs text-red-600">{errors.numero_documento.message as string}</p>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Teléfono</label>
+              <input
+                type="text"
+                {...register('telefono')}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                placeholder="999 888 777"
+                disabled={loading}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Rol *</label>
+              <select
+                {...register('rol_id', { valueAsNumber: true })}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                disabled={loading}
+              >
+                <option value={0}>Selecciona un rol</option>
+                {roles.map((rol) => (
+                  <option key={rol.id} value={rol.id}>
+                    {normalizeRolNombre(rol)}
+                  </option>
+                ))}
+              </select>
+              {errors.rol_id && <p className="text-xs text-red-600">{errors.rol_id.message as string}</p>}
+            </div>
+
+            <div className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+              <input
+                type="checkbox"
+                {...register('activo')}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                disabled={loading}
+              />
+              <div>
+                <p className="text-sm font-medium text-gray-800">Usuario activo</p>
+                <p className="text-xs text-gray-500">Controla si puede iniciar sesión en el sistema.</p>
+              </div>
+            </div>
           </div>
 
-          {/* Número de Documento */}
-          <div>
-            <label htmlFor="numero_documento" className="block text-sm font-medium text-gray-700 mb-1">
-              Número de Documento {usuario ? '' : '*'}
-            </label>
-            <input
-              id="numero_documento"
-              type="text"
-              name="numero_documento"
-              required={!usuario}
-              value={formData.numero_documento}
-              onChange={handleChange}
-              disabled={loading}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-              placeholder="12345678"
-            />
-            {!usuario && (
-              <p className="text-xs text-gray-500 mt-1">Debe ser único en el sistema</p>
-            )}
-          </div>
-
-          {/* Teléfono */}
-          <div>
-            <label htmlFor="telefono" className="block text-sm font-medium text-gray-700 mb-1">
-              Teléfono
-            </label>
-            <input
-              id="telefono"
-              type="tel"
-              name="telefono"
-              value={formData.telefono}
-              onChange={handleChange}
-              disabled={loading}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-              placeholder="999888777"
-            />
-          </div>
-
-          {/* Rol */}
-          <div>
-            <label htmlFor="rol_id" className="block text-sm font-medium text-gray-700 mb-1">
-              Rol *
-            </label>
-            <select
-              id="rol_id"
-              name="rol_id"
-              required
-              value={formData.rol_id}
-              onChange={handleChange}
-              disabled={loading}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-            >
-              <option value="" disabled>Selecciona un rol</option>
-              {roles.map((rol) => (
-                <option key={rol.id} value={rol.id}>
-                  {normalizeRolNombre(rol)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Estado */}
-          <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-            <input
-              id="activo"
-              type="checkbox"
-              name="activo"
-              checked={formData.activo}
-              onChange={handleChange}
-              disabled={loading}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-            />
-            <label htmlFor="activo" className="ml-2 text-sm font-medium text-gray-700">
-              Usuario Activo
-            </label>
-          </div>
-
-          {/* Botones */}
-          <div className="flex gap-3 pt-4 border-t">
+          <div className="mt-6 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end">
             <button
               type="button"
               onClick={onCerrar}
+              className="inline-flex items-center justify-center rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
               disabled={loading}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              disabled={loading || !isFormValid()}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
+              disabled={loading}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60"
             >
-              {loading && <Loader className="w-4 h-4 animate-spin" />}
-              {loading ? 'Guardando...' : usuario ? 'Actualizar' : 'Crear'}
+              {loading && <Loader className="h-4 w-4 animate-spin" />}
+              {loading ? 'Guardando...' : usuario ? 'Actualizar' : 'Crear usuario'}
             </button>
           </div>
         </form>

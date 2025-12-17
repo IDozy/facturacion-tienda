@@ -1,7 +1,7 @@
 // pages/UsuariosPage.tsx
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, AlertCircle, CheckCircle, Loader } from 'lucide-react';
+import { Plus, Search, AlertCircle, CheckCircle, Loader, Shield } from 'lucide-react';
 import type { CreateUsuarioDTO, Rol, UpdateUsuarioDTO, Usuario } from '@/types/User';
 import { usuarioService } from '@/services/userService';
 import { TablaUsuarios } from '@/components/usuarios/UsuarioTable';
@@ -11,7 +11,7 @@ export const UsuariosPage: React.FC = () => {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [roles, setRoles] = useState<Rol[]>([]);
   const [loading, setLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true); // ← Nuevo: para carga inicial
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [search, setSearch] = useState('');
@@ -31,7 +31,7 @@ export const UsuariosPage: React.FC = () => {
 
   useEffect(() => {
     if (success) {
-      const timer = setTimeout(() => setSuccess(''), 5000);
+      const timer = setTimeout(() => setSuccess(''), 4000);
       return () => clearTimeout(timer);
     }
   }, [success]);
@@ -39,26 +39,26 @@ export const UsuariosPage: React.FC = () => {
   const cargarDatos = async () => {
     try {
       setLoading(true);
-      const [usuariosData, rolesData] = await Promise.all([
+      const [usuariosResponse, rolesData] = await Promise.all([
         usuarioService.obtenerUsuarios(),
         usuarioService.obtenerRoles(),
       ]);
-      setUsuarios(usuariosData);
-      setRoles(rolesData);
-      setError(''); // Limpia errores anteriores si la carga es exitosa
-    } catch (err) {
 
+      setUsuarios(usuariosResponse.data);
+      setRoles(rolesData);
+      setError('');
+    } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar datos');
     } finally {
       setLoading(false);
-      setInitialLoading(false); // ← Marca que la carga inicial terminó
+      setInitialLoading(false);
     }
   };
 
   const handleGuardar = async (formData: CreateUsuarioDTO | UpdateUsuarioDTO) => {
     try {
       setLoading(true);
-      setError(''); // Limpia errores anteriores
+      setError('');
 
       if (editingUsuario) {
         await usuarioService.actualizarUsuario(editingUsuario.id, formData as UpdateUsuarioDTO);
@@ -73,14 +73,14 @@ export const UsuariosPage: React.FC = () => {
       await cargarDatos();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar usuario');
-      throw err; // ← Para que el modal también pueda manejar el error
+      throw err;
     } finally {
       setLoading(false);
     }
   };
 
   const handleEliminar = async (id: number) => {
-    const usuario = usuarios.find(u => u.id === id);
+    const usuario = usuarios.find((u) => u.id === id);
     const mensaje = usuario
       ? `¿Está seguro de que desea eliminar al usuario "${usuario.nombre}"?`
       : '¿Está seguro de que desea eliminar este usuario?';
@@ -89,7 +89,7 @@ export const UsuariosPage: React.FC = () => {
 
     try {
       setLoading(true);
-      setError(''); // Limpia errores anteriores
+      setError('');
       await usuarioService.eliminarUsuario(id);
       setSuccess('Usuario eliminado correctamente');
       await cargarDatos();
@@ -103,13 +103,13 @@ export const UsuariosPage: React.FC = () => {
   const handleNuevo = () => {
     setEditingUsuario(null);
     setShowModal(true);
-    setError(''); // Limpia errores al abrir modal
+    setError('');
   };
 
   const handleEditar = (usuario: Usuario) => {
     setEditingUsuario(usuario);
     setShowModal(true);
-    setError(''); // Limpia errores al abrir modal
+    setError('');
   };
 
   const handleCerrarModal = () => {
@@ -124,36 +124,68 @@ export const UsuariosPage: React.FC = () => {
       u.numero_documento?.includes(search)
   );
 
-  // ← Pantalla de carga inicial
   if (initialLoading) {
     return (
-      <div className="p-8 max-w-7xl mx-auto">
-        <div className="flex items-center justify-center h-64">
-          <div className="flex flex-col items-center gap-3">
-            <Loader className="w-8 h-8 animate-spin text-blue-600" />
-            <p className="text-gray-600">Cargando usuarios...</p>
+      <div className="p-8 max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center gap-3">
+          <Loader className="w-6 h-6 animate-spin text-blue-600" />
+          <div>
+            <p className="text-lg font-semibold text-gray-900">Cargando usuarios</p>
+            <p className="text-sm text-gray-500">Preparando el panel de usuarios...</p>
           </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[1, 2, 3, 4].map((skeleton) => (
+            <div
+              key={skeleton}
+              className="animate-pulse rounded-xl border border-gray-100 bg-white p-4 shadow-sm"
+            >
+              <div className="h-4 w-1/3 rounded bg-gray-200" />
+              <div className="mt-3 h-3 w-2/3 rounded bg-gray-100" />
+              <div className="mt-4 h-10 rounded bg-gray-100" />
+            </div>
+          ))}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestión de Usuarios</h1>
-        <p className="text-gray-600">Administra los usuarios del sistema</p>
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2 text-sm text-blue-600">
+          <Shield className="w-4 h-4" />
+          <span>Configuración · Seguridad y accesos</span>
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Gestión de Usuarios</h1>
+            <p className="text-gray-600">Administra cuentas, roles y accesos de tu equipo.</p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleNuevo}
+              disabled={loading}
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Plus className="w-4 h-4" />
+              Nuevo usuario
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Mensajes */}
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
-          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-          <span className="text-red-700">{error}</span>
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold">No se pudo completar la operación</p>
+            <p className="text-red-700">{error}</p>
+          </div>
           <button
             onClick={() => setError('')}
-            className="ml-auto text-red-600 hover:text-red-800"
+            className="text-red-600 transition hover:text-red-800"
+            aria-label="Cerrar alerta de error"
           >
             ✕
           </button>
@@ -161,53 +193,39 @@ export const UsuariosPage: React.FC = () => {
       )}
 
       {success && (
-        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
-          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-          <span className="text-green-700">{success}</span>
+        <div className="flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+          <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold">Acción completada</p>
+            <p className="text-green-700">{success}</p>
+          </div>
           <button
             onClick={() => setSuccess('')}
-            className="ml-auto text-green-600 hover:text-green-800"
+            className="text-green-700 transition hover:text-green-900"
+            aria-label="Cerrar alerta de éxito"
           >
             ✕
           </button>
         </div>
       )}
 
-      {/* Barra de herramientas */}
-      <div className="mb-6 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+      <div className="flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative flex-1 min-w-0">
+          <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Buscar por nombre, email o documento..."
+            placeholder="Buscar por nombre, email o documento"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full rounded-lg border border-gray-200 bg-gray-50 pl-10 pr-4 py-2 text-sm focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100"
           />
         </div>
-
-        <button
-          onClick={handleNuevo}
-          disabled={loading}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Plus className="w-5 h-5" />
-          Nuevo Usuario
-        </button>
+        <div className="text-xs text-gray-500">
+          {filteredUsuarios.length} resultado{filteredUsuarios.length === 1 ? '' : 's'}
+        </div>
       </div>
 
-      {/* Contador de resultados */}
-      {search && (
-        <div className="mb-4 text-sm text-gray-600">
-          {filteredUsuarios.length === 0
-            ? 'No se encontraron usuarios'
-            : `${filteredUsuarios.length} usuario${filteredUsuarios.length !== 1 ? 's' : ''} encontrado${filteredUsuarios.length !== 1 ? 's' : ''}`
-          }
-        </div>
-      )}
-
-      {/* Tabla */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
         <TablaUsuarios
           usuarios={filteredUsuarios}
           roles={roles}
@@ -217,7 +235,24 @@ export const UsuariosPage: React.FC = () => {
         />
       </div>
 
-      {/* Modal */}
+      {filteredUsuarios.length === 0 && !loading && (
+        <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center shadow-sm">
+          <p className="text-lg font-semibold text-gray-900">Aún no hay usuarios registrados</p>
+          <p className="mt-2 text-gray-600">
+            Crea el primer usuario para empezar a invitar a tu equipo y controlar sus accesos.
+          </p>
+          <div className="mt-4 flex justify-center">
+            <button
+              onClick={handleNuevo}
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4" />
+              Crear usuario
+            </button>
+          </div>
+        </div>
+      )}
+
       {showModal && (
         <ModalUsuario
           usuario={editingUsuario}

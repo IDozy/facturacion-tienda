@@ -17,7 +17,7 @@ import {
     getConfiguracionPorEmpresa,  // ✅ Cambiado
     saveConfiguracionEmpresa,     // ✅ Nuevo
 } from "../../services/configuracionEmpresaService";
-import { getUserWithEmpresa } from "../../services/empresaService";
+import { getEmpresaActual } from "../../services/empresaService";
 import type { ConfiguracionEmpresa } from "../../types/ConfiguracionEmpresa";
 
 export default function ConfiguracionEmpresaForm() {
@@ -47,8 +47,8 @@ export default function ConfiguracionEmpresaForm() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const userData = await getUserWithEmpresa();
-                const empId = userData.user?.empresa_id || userData.empresa_id;
+                const empresaActual = await getEmpresaActual();
+                const empId = empresaActual?.id;
 
                 if (!empId) {
                     setErrors({ fetch: "No se pudo obtener el ID de la empresa" });
