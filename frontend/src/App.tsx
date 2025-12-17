@@ -1,6 +1,5 @@
 import { ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-
 import Layout from './components/Layout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
@@ -52,3 +51,4 @@ function App() {
 }
 
 export default App;
+
