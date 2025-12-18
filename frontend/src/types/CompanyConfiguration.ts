@@ -18,12 +18,16 @@ export interface SunatSettings {
   regimen: string;
   tipoContribuyente?: string;
   afectacionIgv: string;
-  codigoEstablecimiento?: string;
   certificadoUrl?: string;
   certificadoEstado?: string;
   certificadoVigenciaDesde?: string | null;
   certificadoVigenciaHasta?: string | null;
   ambiente: 'PRUEBAS' | 'PRODUCCION';
+  hasSolCredentials?: boolean;
+  hasCertificate?: boolean;
+  certificateStatus?: 'ACTIVE' | 'EXPIRED' | 'REVOKED' | null;
+  certificateValidFrom?: string | null;
+  certificateValidUntil?: string | null;
 }
 
 export interface DocumentSeriesConfig {

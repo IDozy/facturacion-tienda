@@ -7,8 +7,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum SunatAmbiente {
+  PRUEBAS
+  PRODUCCION
+}
+
+enum CertificateStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
 model Company {
-  id                 Int     @id @default(autoincrement())
+  id                 Int      @id @default(autoincrement())
   empresaId          Int      @map("empresa_id")
   razonSocial        String   @map("razon_social")
   nombreComercial    String?  @map("nombre_comercial")
@@ -20,7 +31,7 @@ model Company {
   logoUrl            String?  @map("logo_url")
   region             String?
   ciudad             String?
-  pais               String?
+  pais               String   @default("Perú")
   updatedBy          Int?     @map("updated_by")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
@@ -29,54 +40,71 @@ model Company {
 }
 
 model TaxSettings {
-  id                         Int      @id @default(autoincrement())
-  empresaId                  Int      @map("empresa_id")
-  regimen                    String
-  tipoContribuyente          String?  @map("tipo_contribuyente")
-  afectacionIgv              String   @map("afectacion_igv")
-  codigoEstablecimiento      String?  @map("codigo_establecimiento")
-  certificadoUrl             String?  @map("certificado_url")
-  certificadoEstado          String?  @map("certificado_estado")
-  certificadoVigenciaDesde   DateTime? @map("certificado_vigencia_desde")
-  certificadoVigenciaHasta   DateTime? @map("certificado_vigencia_hasta")
-  ambiente                   String   @default("PRUEBAS")
-  updatedBy                  Int?     @map("updated_by")
-  createdAt                  DateTime @default(now()) @map("created_at")
-  updatedAt                  DateTime @updatedAt @map("updated_at")
+  id                           Int      @id @default(autoincrement())
+  empresaId                    Int      @map("empresa_id")
+  regimen                      String
+  tipoContribuyente            String?  @map("tipo_contribuyente")
+  afectacionIgv                String   @map("afectacion_igv")
+
+  // ❌ Eliminado: codigoEstablecimiento / codigo_establecimiento
+
+  certificadoUrl               String?   @map("certificado_url")
+  certificadoEstado            String?   @map("certificado_estado")
+  certificadoVigenciaDesde     DateTime? @map("certificado_vigencia_desde")
+  certificadoVigenciaHasta     DateTime? @map("certificado_vigencia_hasta")
+
+  ambiente                     SunatAmbiente @default(PRUEBAS)
+
+  // 🔐 SOL cifrado + flag (NO exponer en API)
+  sunatUserEncrypted           String?   @map("sunat_user_encrypted")
+  sunatPasswordEncrypted       String?   @map("sunat_password_encrypted")
+  hasSolCredentials            Boolean   @default(false) @map("has_sol_credentials")
+
+  // 🔏 Certificado digital (storage key + metadatos)
+  certificateStorageKey        String?   @map("certificate_storage_key")
+  certificatePasswordEncrypted String?   @map("certificate_password_encrypted")
+  certificateValidFrom         DateTime? @map("certificate_valid_from")
+  certificateValidUntil        DateTime? @map("certificate_valid_until")
+  certificateStatus            CertificateStatus? @map("certificate_status")
+
+  updatedBy                    Int?     @map("updated_by")
+  createdAt                    DateTime @default(now()) @map("created_at")
+  updatedAt                    DateTime @updatedAt @map("updated_at")
 
   @@map("tax_settings")
 }
 
 model DocumentSeries {
-  id                  Int      @id @default(autoincrement())
-  empresaId           Int      @map("empresa_id")
-  tipo                String
-  serie               String
-  correlativoInicial  Int      @map("correlativo_inicial")
-  correlativoActual   Int      @map("correlativo_actual")
-  automatico          Boolean  @default(true)
-  activo              Boolean  @default(true)
-  updatedBy           Int?     @map("updated_by")
-  createdAt           DateTime @default(now()) @map("created_at")
-  updatedAt           DateTime @updatedAt @map("updated_at")
+  id                 Int      @id @default(autoincrement())
+  empresaId          Int      @map("empresa_id")
+  tipo               String
+  serie              String
+  correlativoInicial Int      @map("correlativo_inicial")
+  correlativoActual  Int      @map("correlativo_actual")
+  automatico         Boolean  @default(true)
+  activo             Boolean  @default(true)
+  updatedBy          Int?     @map("updated_by")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
   @@map("document_series")
 }
 
 model Currency {
-  id                    Int      @id @default(autoincrement())
-  empresaId             Int      @map("empresa_id")
-  code                  String
-  name                  String
-  isBase                Boolean  @default(false) @map("is_base")
-  preciosIncluyenIgv    Boolean  @default(true) @map("precios_incluyen_igv")
-  igvRate               Float    @default(18) @map("igv_rate")
-  redondeo              Boolean  @default(false)
-  tipoCambioAutomatico  Boolean  @default(false) @map("tipo_cambio_automatico")
-  updatedBy             Int?     @map("updated_by")
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
-  exchangeRates         ExchangeRate[]
+  id                   Int            @id @default(autoincrement())
+  empresaId            Int            @map("empresa_id")
+  code                 String
+  name                 String
+  isBase               Boolean        @default(false) @map("is_base")
+  preciosIncluyenIgv   Boolean        @default(true) @map("precios_incluyen_igv")
+  igvRate              Float          @default(18) @map("igv_rate")
+  redondeo             Boolean        @default(false)
+  tipoCambioAutomatico Boolean        @default(false) @map("tipo_cambio_automatico")
+  updatedBy            Int?           @map("updated_by")
+  createdAt            DateTime       @default(now()) @map("created_at")
+  updatedAt            DateTime       @updatedAt @map("updated_at")
+
+  exchangeRates        ExchangeRate[]
 
   @@map("currencies")
 }
@@ -99,34 +127,34 @@ model ExchangeRate {
 }
 
 model Warehouse {
-  id             Int      @id @default(autoincrement())
-  empresaId      Int      @map("empresa_id")
-  nombre         String
-  principal      Boolean  @default(false)
-  stockNegativo  Boolean  @default(false) @map("stock_negativo")
-  manejaSeries   Boolean  @default(false) @map("maneja_series")
-  manejaLotes    Boolean  @default(false) @map("maneja_lotes")
-  codigoBarras   String?  @map("codigo_barras")
-  activo         Boolean  @default(true)
-  updatedBy      Int?     @map("updated_by")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id            Int      @id @default(autoincrement())
+  empresaId     Int      @map("empresa_id")
+  nombre        String
+  principal     Boolean  @default(false)
+  stockNegativo Boolean  @default(false) @map("stock_negativo")
+  manejaSeries  Boolean  @default(false) @map("maneja_series")
+  manejaLotes   Boolean  @default(false) @map("maneja_lotes")
+  codigoBarras  String?  @map("codigo_barras")
+  activo        Boolean  @default(true)
+  updatedBy     Int?     @map("updated_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   @@map("warehouses")
 }
 
 model Cashbox {
-  id               Int      @id @default(autoincrement())
-  empresaId        Int      @map("empresa_id")
-  nombre           String
-  moneda           String
-  porDefecto       Boolean  @default(false) @map("por_defecto")
-  manejaCheques    Boolean  @default(false) @map("maneja_cheques")
-  liquidacionDiaria Boolean @default(false) @map("liquidacion_diaria")
-  flujoAutomatico  Boolean  @default(false) @map("flujo_automatico")
-  updatedBy        Int?     @map("updated_by")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  id                Int      @id @default(autoincrement())
+  empresaId          Int      @map("empresa_id")
+  nombre             String
+  moneda             String
+  porDefecto         Boolean  @default(false) @map("por_defecto")
+  manejaCheques      Boolean  @default(false) @map("maneja_cheques")
+  liquidacionDiaria  Boolean  @default(false) @map("liquidacion_diaria")
+  flujoAutomatico    Boolean  @default(false) @map("flujo_automatico")
+  updatedBy          Int?     @map("updated_by")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
   @@map("cashboxes")
 }
@@ -147,20 +175,20 @@ model BankAccount {
 }
 
 model AccountingSettings {
-  id                         Int      @id @default(autoincrement())
-  empresaId                  Int      @map("empresa_id")
-  planContable               String?  @map("plan_contable")
-  cuentaVentas               String?  @map("cuenta_ventas")
-  cuentaCompras              String?  @map("cuenta_compras")
-  cuentaIgv                  String?  @map("cuenta_igv")
-  cuentaCaja                 String?  @map("cuenta_caja")
-  cuentaBancos               String?  @map("cuenta_bancos")
-  contabilizacionAutomatica  Boolean  @default(false) @map("contabilizacion_automatica")
-  centrosCostoObligatorios   Boolean  @default(false) @map("centros_costo_obligatorios")
-  periodos                   Json?
-  updatedBy                  Int?     @map("updated_by")
-  createdAt                  DateTime @default(now()) @map("created_at")
-  updatedAt                  DateTime @updatedAt @map("updated_at")
+  id                        Int      @id @default(autoincrement())
+  empresaId                 Int      @map("empresa_id")
+  planContable              String?  @map("plan_contable")
+  cuentaVentas              String?  @map("cuenta_ventas")
+  cuentaCompras             String?  @map("cuenta_compras")
+  cuentaIgv                 String?  @map("cuenta_igv")
+  cuentaCaja                String?  @map("cuenta_caja")
+  cuentaBancos              String?  @map("cuenta_bancos")
+  contabilizacionAutomatica Boolean  @default(false) @map("contabilizacion_automatica")
+  centrosCostoObligatorios  Boolean  @default(false) @map("centros_costo_obligatorios")
+  periodos                  Json?
+  updatedBy                 Int?     @map("updated_by")
+  createdAt                 DateTime @default(now()) @map("created_at")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
 
   @@map("accounting_settings")
 }
@@ -208,17 +236,17 @@ model AuditLog {
 }
 
 model Role {
-  id        Int      @id @default(autoincrement())
+  id        Int    @id @default(autoincrement())
   name      String
-  guardName String   @map("guard_name")
+  guardName String @map("guard_name")
 
   @@map("roles")
 }
 
 model Permission {
-  id        Int      @id @default(autoincrement())
+  id        Int    @id @default(autoincrement())
   name      String
-  guardName String   @map("guard_name")
+  guardName String @map("guard_name")
 
   @@map("permissions")
 }

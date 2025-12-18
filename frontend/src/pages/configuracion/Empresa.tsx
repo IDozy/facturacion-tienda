@@ -2,14 +2,14 @@ import { useEffect, useMemo, useState, type ComponentType, type SVGProps } from 
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, Building2, CheckCircle2, Loader2, Save, Shield, Wallet, Warehouse as WarehouseIcon, Wrench } from 'lucide-react';
+import { AlertCircle, Building2, CheckCircle2, Eye, EyeOff, Loader2, PlugZap, Save, Shield, ShieldCheck, Wallet, Warehouse as WarehouseIcon, Wrench } from 'lucide-react';
 
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { toast } from '../../lib/sonner';
 import { authService } from '../../services/auth';
-import { fetchCompanyConfiguration, saveCompanyConfiguration } from '../../services/companySettingsService';
+import { fetchCompanyConfiguration, fetchSunatStatus, saveCompanyConfiguration, saveSunatCredentials, testSunatConnection, uploadSunatCertificate } from '../../services/companySettingsService';
 import type { CompanyConfiguration } from '../../types/CompanyConfiguration';
 
 const serieSchema = z.object({
@@ -90,12 +90,16 @@ const formSchema = z.object({
     regimen: z.string().min(1),
     tipoContribuyente: z.string().optional(),
     afectacionIgv: z.string().min(1),
-    codigoEstablecimiento: z.string().optional(),
     certificadoUrl: z.string().optional(),
     certificadoEstado: z.string().optional(),
     certificadoVigenciaDesde: z.string().optional(),
     certificadoVigenciaHasta: z.string().optional(),
     ambiente: z.enum(['PRUEBAS', 'PRODUCCION']),
+    hasSolCredentials: z.boolean().optional(),
+    hasCertificate: z.boolean().optional(),
+    certificateStatus: z.enum(['ACTIVE', 'EXPIRED', 'REVOKED']).nullable().optional(),
+    certificateValidFrom: z.string().nullable().optional(),
+    certificateValidUntil: z.string().nullable().optional(),
   }),
   documentos: z.object({
     series: z.array(serieSchema).min(1),
@@ -161,12 +165,16 @@ const emptyForm: FormValues = {
     regimen: 'GENERAL',
     tipoContribuyente: '',
     afectacionIgv: 'GRAVADO',
-    codigoEstablecimiento: '',
     certificadoUrl: '',
     certificadoEstado: '',
     certificadoVigenciaDesde: '',
     certificadoVigenciaHasta: '',
     ambiente: 'PRUEBAS',
+    hasSolCredentials: false,
+    hasCertificate: false,
+    certificateStatus: null,
+    certificateValidFrom: null,
+    certificateValidUntil: null,
   },
   documentos: {
     series: [
@@ -290,6 +298,27 @@ export default function EmpresaPage() {
   const [saving, setSaving] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const canEditFromRole = authService.hasRole(['admin', 'administrador']);
+  const [sunatStatus, setSunatStatus] = useState<{
+    hasSolCredentials: boolean;
+    hasCertificate: boolean;
+    certificateStatus: 'ACTIVE' | 'EXPIRED' | 'REVOKED' | null;
+    certificateValidFrom: string | null;
+    certificateValidUntil: string | null;
+  }>({
+    hasSolCredentials: false,
+    hasCertificate: false,
+    certificateStatus: null,
+    certificateValidFrom: null,
+    certificateValidUntil: null,
+  });
+  const [sunatUser, setSunatUser] = useState('');
+  const [sunatPassword, setSunatPassword] = useState('');
+  const [sunatPasswordVisible, setSunatPasswordVisible] = useState(false);
+  const [certificatePassword, setCertificatePassword] = useState('');
+  const [certificateFile, setCertificateFile] = useState<File | null>(null);
+  const [testingSunat, setTestingSunat] = useState(false);
+  const [savingCreds, setSavingCreds] = useState(false);
+  const [uploadingCert, setUploadingCert] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -318,6 +347,14 @@ export default function EmpresaPage() {
         form.reset({
           ...emptyForm,
           ...data,
+        });
+        const status = await fetchSunatStatus();
+        setSunatStatus({
+          hasSolCredentials: status.hasSolCredentials,
+          hasCertificate: status.hasCertificate,
+          certificateStatus: (status.certificateStatus as 'ACTIVE' | 'EXPIRED' | 'REVOKED' | null) ?? null,
+          certificateValidFrom: status.certificateValidFrom ?? null,
+          certificateValidUntil: status.certificateValidUntil ?? null,
         });
       } catch (error: any) {
         setServerError(error?.response?.data?.message || 'No se pudo cargar la configuración');
@@ -651,34 +688,195 @@ export default function EmpresaPage() {
           )}
 
           {active === 'sunat' && (
-            <Card title="Datos Tributarios SUNAT" description="Compatibles con XML y envíos electrónicos">
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Régimen" required>
-                  <Input disabled={!canEdit} {...form.register('sunat.regimen')} />
-                </Field>
-                <Field label="Tipo de contribuyente">
-                  <Input disabled={!canEdit} {...form.register('sunat.tipoContribuyente')} />
-                </Field>
-                <Field label="Afectación IGV" required>
-                  <Input disabled={!canEdit} {...form.register('sunat.afectacionIgv')} />
-                </Field>
-                <Field label="Código de establecimiento">
-                  <Input disabled={!canEdit} {...form.register('sunat.codigoEstablecimiento')} />
-                </Field>
-                <Field label="Ambiente" required>
-                  <select className="rounded-md border border-slate-200 px-2 py-2" disabled={!canEdit} {...form.register('sunat.ambiente')}>
-                    <option value="PRUEBAS">PRUEBAS</option>
-                    <option value="PRODUCCION">PRODUCCIÓN</option>
-                  </select>
-                </Field>
-                <Field label="Certificado URL">
-                  <Input disabled={!canEdit} {...form.register('sunat.certificadoUrl')} />
-                </Field>
-                <Field label="Estado certificado">
-                  <Input disabled={!canEdit} {...form.register('sunat.certificadoEstado')} />
-                </Field>
-              </div>
-            </Card>
+            <div className="space-y-4">
+              <Card title="Datos Tributarios SUNAT" description="Compatibles con XML y envíos electrónicos">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Régimen" required>
+                    <Input disabled={!canEdit} {...form.register('sunat.regimen')} />
+                  </Field>
+                  <Field label="Tipo de contribuyente">
+                    <Input disabled={!canEdit} {...form.register('sunat.tipoContribuyente')} />
+                  </Field>
+                  <Field label="Afectación IGV" required>
+                    <Input disabled={!canEdit} {...form.register('sunat.afectacionIgv')} />
+                  </Field>
+                  <Field label="Ambiente" required>
+                    <select
+                      className="rounded-md border border-slate-200 px-2 py-2"
+                      disabled={
+                        !canEdit ||
+                        (form.watch('sunat.ambiente') === 'PRODUCCION' && (!sunatStatus.hasSolCredentials || !sunatStatus.hasCertificate || sunatStatus.certificateStatus !== 'ACTIVE'))
+                      }
+                      {...form.register('sunat.ambiente')}
+                    >
+                      <option value="PRUEBAS">PRUEBAS</option>
+                      <option value="PRODUCCION" disabled={!sunatStatus.hasSolCredentials || !sunatStatus.hasCertificate || sunatStatus.certificateStatus !== 'ACTIVE'}>
+                        PRODUCCIÓN
+                      </option>
+                    </select>
+                  </Field>
+                  <div className="flex items-center gap-3 text-sm">
+                    <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                    <span className="text-slate-700">SOL: {sunatStatus.hasSolCredentials ? '✅ Configurado' : '❌ No configurado'}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <Shield className="h-4 w-4 text-blue-600" />
+                    <span className="text-slate-700">Certificado: {sunatStatus.hasCertificate ? (sunatStatus.certificateStatus === 'ACTIVE' ? '✅ Vigente' : '⚠️ No vigente') : '❌ No configurado'}</span>
+                  </div>
+                </div>
+              </Card>
+
+              <Card title="Credenciales SUNAT (SOL)" description="Se almacenan cifradas. No se muestran valores reales.">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Usuario SOL" required>
+                    <Input
+                      disabled={!canEdit}
+                      value={sunatUser}
+                      onChange={(e) => setSunatUser(e.target.value)}
+                      placeholder="MODDATOS"
+                    />
+                  </Field>
+                  <Field label="Clave SOL" required>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type={sunatPasswordVisible ? 'text' : 'password'}
+                        disabled={!canEdit}
+                        value={sunatPassword}
+                        onChange={(e) => setSunatPassword(e.target.value)}
+                        placeholder="••••••"
+                      />
+                      <Button type="button" variant="outline" disabled={!canEdit} onClick={() => setSunatPasswordVisible(!sunatPasswordVisible)}>
+                        {sunatPasswordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </Field>
+                  <div className="flex items-center gap-2 text-sm">
+                    <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                    <span>Estado: {sunatStatus.hasSolCredentials ? '✅ Configurado' : '❌ No configurado'}</span>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      onClick={async () => {
+                        if (!canEdit) return;
+                        setSavingCreds(true);
+                        try {
+                          await saveSunatCredentials({ sunatUser, sunatPassword });
+                          setSunatStatus((prev) => ({ ...prev, hasSolCredentials: true }));
+                          setSunatPassword('');
+                          toast.success('Credenciales guardadas');
+                        } catch (error: any) {
+                          toast.error(error?.response?.data?.message || 'No se pudieron guardar las credenciales');
+                        } finally {
+                          setSavingCreds(false);
+                        }
+                      }}
+                      disabled={!canEdit || savingCreds}
+                    >
+                      {savingCreds ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Guardar credenciales
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
+              <Card title="Certificado Digital" description="Sube archivo .pfx/.p12 y contraseña. Se guarda cifrado.">
+                <div className="space-y-3">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field label="Archivo .pfx / .p12" required>
+                      <Input
+                        type="file"
+                        accept=".pfx,.p12"
+                        disabled={!canEdit}
+                        onChange={(e) => setCertificateFile(e.target.files?.[0] ?? null)}
+                      />
+                    </Field>
+                    <Field label="Contraseña" required>
+                      <Input
+                        type="password"
+                        disabled={!canEdit}
+                        value={certificatePassword}
+                        onChange={(e) => setCertificatePassword(e.target.value)}
+                        placeholder="••••••"
+                      />
+                    </Field>
+                  </div>
+                  <div className="grid gap-2 text-sm md:grid-cols-2">
+                    <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+                      <p className="font-semibold text-slate-700">Estado</p>
+                      <p className="text-slate-600">
+                        {sunatStatus.hasCertificate ? (sunatStatus.certificateStatus === 'ACTIVE' ? '✅ Vigente' : '⚠️ No vigente') : '❌ No configurado'}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+                      <p className="font-semibold text-slate-700">Vigencia</p>
+                      <p className="text-slate-600">
+                        {sunatStatus.certificateValidFrom ? `${sunatStatus.certificateValidFrom} → ${sunatStatus.certificateValidUntil ?? '—'}` : 'No disponible'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!canEdit || uploadingCert || !certificateFile || !certificatePassword}
+                      onClick={async () => {
+                        if (!certificateFile || !certificatePassword) return;
+                        setUploadingCert(true);
+                        const fd = new FormData();
+                        fd.append('certificate', certificateFile);
+                        fd.append('password', certificatePassword);
+                        try {
+                          const response = await uploadSunatCertificate(fd);
+                          setSunatStatus((prev) => ({
+                            ...prev,
+                            hasCertificate: response.hasCertificate ?? true,
+                            certificateStatus: (response.certificateStatus as 'ACTIVE' | 'EXPIRED' | 'REVOKED' | null) ?? 'ACTIVE',
+                            certificateValidFrom: response.certificateValidFrom ?? prev.certificateValidFrom,
+                            certificateValidUntil: response.certificateValidUntil ?? prev.certificateValidUntil,
+                          }));
+                          setCertificateFile(null);
+                          setCertificatePassword('');
+                          toast.success('Certificado actualizado');
+                        } catch (error: any) {
+                          toast.error(error?.response?.data?.message || 'No se pudo cargar el certificado');
+                        } finally {
+                          setUploadingCert(false);
+                        }
+                      }}
+                    >
+                      {uploadingCert ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Reemplazar certificado
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
+              <Card title="Probar conexión SUNAT" description="Verifica credenciales y firma (simulada)">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-slate-700">
+                    <PlugZap className="h-4 w-4 text-blue-600" />
+                    <span>Ejecuta validación remota</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={testingSunat || !canEditFromRole}
+                    onClick={async () => {
+                      setTestingSunat(true);
+                      try {
+                        const res = await testSunatConnection();
+                        toast.success(res.message || 'Conexión OK');
+                      } catch (error: any) {
+                        toast.error(error?.response?.data?.message || 'Error en la prueba');
+                      } finally {
+                        setTestingSunat(false);
+                      }
+                    }}
+                  >
+                    {testingSunat ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Shield className="mr-2 h-4 w-4" />} Probar conexión
+                  </Button>
+                </div>
+              </Card>
+            </div>
           )}
 
           {active === 'documentos' && (
