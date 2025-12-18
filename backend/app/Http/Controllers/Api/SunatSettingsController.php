@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\TaxSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
@@ -14,6 +15,9 @@ class SunatSettingsController extends Controller
 {
     public function status(Request $request)
     {
+        if (!Schema::hasTable('tax_settings')) {
+            return response()->json(['message' => 'Faltan migraciones de configuración SUNAT. Ejecuta php artisan migrate.'], 500);
+        }
         $user = $request->user();
         $tax = TaxSetting::firstOrCreate(
             ['empresa_id' => $user->empresa_id],
@@ -37,6 +41,9 @@ class SunatSettingsController extends Controller
 
     public function saveCredentials(Request $request)
     {
+        if (!Schema::hasTable('tax_settings')) {
+            return response()->json(['message' => 'Faltan migraciones de configuración SUNAT. Ejecuta php artisan migrate.'], 500);
+        }
         $user = $request->user();
         if (!$user->hasAnyRole(['admin', 'administrador'])) {
             return response()->json(['message' => 'Solo los administradores pueden editar'], 403);
@@ -79,6 +86,9 @@ class SunatSettingsController extends Controller
 
     public function uploadCertificate(Request $request)
     {
+        if (!Schema::hasTable('tax_settings')) {
+            return response()->json(['message' => 'Faltan migraciones de configuración SUNAT. Ejecuta php artisan migrate.'], 500);
+        }
         $user = $request->user();
         if (!$user->hasAnyRole(['admin', 'administrador'])) {
             return response()->json(['message' => 'Solo los administradores pueden editar'], 403);
@@ -138,6 +148,9 @@ class SunatSettingsController extends Controller
 
     public function test(Request $request)
     {
+        if (!Schema::hasTable('tax_settings')) {
+            return response()->json(['message' => 'Faltan migraciones de configuración SUNAT. Ejecuta php artisan migrate.'], 500);
+        }
         $user = $request->user();
         $tax = TaxSetting::where('empresa_id', $user->empresa_id)->first();
         if (!$tax || !$tax->has_sol_credentials || !$tax->certificate_storage_key) {

@@ -17,6 +17,7 @@ use App\Models\TaxSetting;
 use App\Models\Warehouse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -24,9 +25,12 @@ class CompanySettingsController extends Controller
 {
     public function show(Request $request)
     {
+        if (!Schema::hasTable('company_settings') || !Schema::hasTable('tax_settings')) {
+            return response()->json(['message' => 'Faltan migraciones de configuración de empresa. Ejecuta php artisan migrate.'], 500);
+        }
+
         $user = $request->user();
         $empresaId = $user->empresa_id;
-
         $company = CompanySetting::firstOrCreate(
             ['empresa_id' => $empresaId],
             [
@@ -40,7 +44,6 @@ class CompanySettingsController extends Controller
         );
 
         $tax = TaxSetting::firstOrNew(['empresa_id' => $empresaId]);
-
         $series = DocumentSeries::where('empresa_id', $empresaId)->get();
         $currencies = Currency::with('exchangeRates')->where('empresa_id', $empresaId)->get();
         $warehouses = Warehouse::where('empresa_id', $empresaId)->get();
@@ -49,23 +52,20 @@ class CompanySettingsController extends Controller
         $accounting = AccountingSetting::firstOrNew(['empresa_id' => $empresaId]);
         $preferences = SystemPreference::firstOrNew(['empresa_id' => $empresaId]);
         $integrations = Integration::where('empresa_id', $empresaId)->get();
-
         $permissions = $user->getAllPermissions()->pluck('name')->toArray();
 
         $completion = [
-            'general' => (bool) ($company->razon_social && $company->ruc && $company->direccion_fiscal),
-            'sunat' => (bool) ($tax->regimen && $tax->afectacion_igv),
+            'general' => $company->razon_social && $company->ruc && $company->direccion_fiscal,
+            'sunat' => $tax && $tax->regimen && $tax->afectacion_igv,
             'documentos' => $series->count() >= 1,
             'monedas' => $currencies->count() >= 1,
             'almacenes' => $warehouses->count() >= 1,
             'caja' => $cashboxes->count() >= 1,
-            'contabilidad' => (bool) ($accounting->plan_contable ?? null),
+            'contabilidad' => (bool)$accounting?->plan_contable,
             'seguridad' => true,
-            'preferencias' => (bool) ($preferences->idioma ?? null),
+            'preferencias' => (bool)$preferences?->idioma,
             'integraciones' => $integrations->count() >= 1,
         ];
-
-        $baseCurrency = $currencies->firstWhere('is_base', true);
 
         return response()->json([
             'general' => [
@@ -81,28 +81,21 @@ class CompanySettingsController extends Controller
                 'ciudad' => $company->ciudad,
                 'pais' => $company->pais,
             ],
-
             'sunat' => [
                 'regimen' => $tax->regimen,
                 'tipoContribuyente' => $tax->tipo_contribuyente,
                 'afectacionIgv' => $tax->afectacion_igv,
-
-                // ❌ Eliminado: codigoEstablecimiento / codigo_establecimiento
-
                 'certificadoUrl' => $tax->certificado_url,
                 'certificadoEstado' => $tax->certificado_estado,
                 'certificadoVigenciaDesde' => $tax->certificado_vigencia_desde?->toDateString(),
                 'certificadoVigenciaHasta' => $tax->certificado_vigencia_hasta?->toDateString(),
                 'ambiente' => $tax->ambiente ?? 'PRUEBAS',
-
-                // ✅ Flags/metadatos (sin exponer secretos)
-                'hasSolCredentials' => (bool) ($tax->has_sol_credentials ?? false),
-                'hasCertificate' => (bool) ($tax->certificate_storage_key ?? null),
-                'certificateStatus' => $tax->certificate_status ?? null,
+                'hasSolCredentials' => (bool)$tax->has_sol_credentials,
+                'hasCertificate' => (bool)$tax->certificate_storage_key,
+                'certificateStatus' => $tax->certificate_status,
                 'certificateValidFrom' => $tax->certificate_valid_from?->toDateString(),
                 'certificateValidUntil' => $tax->certificate_valid_until?->toDateString(),
             ],
-
             'documentos' => [
                 'series' => $series->map(function ($s) {
                     return [
@@ -110,20 +103,19 @@ class CompanySettingsController extends Controller
                         'serie' => $s->serie,
                         'correlativoInicial' => $s->correlativo_inicial,
                         'correlativoActual' => $s->correlativo_actual,
-                        'automatico' => (bool) $s->automatico,
-                        'activo' => (bool) $s->activo,
+                        'automatico' => (bool)$s->automatico,
+                        'activo' => (bool)$s->activo,
                     ];
                 })->values(),
             ],
-
             'monedas' => [
-                'monedaBase' => $baseCurrency ? [
-                    'code' => $baseCurrency->code,
-                    'name' => $baseCurrency->name,
-                    'preciosIncluyenIgv' => (bool) $baseCurrency->precios_incluyen_igv,
-                    'igvRate' => (float) $baseCurrency->igv_rate,
-                    'redondeo' => (bool) $baseCurrency->redondeo,
-                    'tipoCambioAutomatico' => (bool) $baseCurrency->tipo_cambio_automatico,
+                'monedaBase' => $currencies->firstWhere('is_base', true) ? [
+                    'code' => $currencies->firstWhere('is_base', true)->code,
+                    'name' => $currencies->firstWhere('is_base', true)->name,
+                    'preciosIncluyenIgv' => (bool)$currencies->firstWhere('is_base', true)->precios_incluyen_igv,
+                    'igvRate' => (float)$currencies->firstWhere('is_base', true)->igv_rate,
+                    'redondeo' => (bool)$currencies->firstWhere('is_base', true)->redondeo,
+                    'tipoCambioAutomatico' => (bool)$currencies->firstWhere('is_base', true)->tipo_cambio_automatico,
                 ] : [
                     'code' => 'PEN',
                     'name' => 'Sol Peruano',
@@ -132,18 +124,16 @@ class CompanySettingsController extends Controller
                     'redondeo' => false,
                     'tipoCambioAutomatico' => false,
                 ],
-
                 'secundarias' => $currencies->filter(fn ($c) => !$c->is_base)->map(function ($c) {
                     return [
                         'code' => $c->code,
                         'name' => $c->name,
-                        'preciosIncluyenIgv' => (bool) $c->precios_incluyen_igv,
-                        'igvRate' => (float) $c->igv_rate,
-                        'redondeo' => (bool) $c->redondeo,
-                        'tipoCambioAutomatico' => (bool) $c->tipo_cambio_automatico,
+                        'preciosIncluyenIgv' => (bool)$c->precios_incluyen_igv,
+                        'igvRate' => (float)$c->igv_rate,
+                        'redondeo' => (bool)$c->redondeo,
+                        'tipoCambioAutomatico' => (bool)$c->tipo_cambio_automatico,
                     ];
                 })->values(),
-
                 'exchangeRates' => $currencies->flatMap(function ($c) {
                     return $c->exchangeRates->map(function ($rate) use ($c) {
                         return [
@@ -157,42 +147,38 @@ class CompanySettingsController extends Controller
                     });
                 })->values(),
             ],
-
             'almacenes' => $warehouses->map(function ($w) {
                 return [
                     'nombre' => $w->nombre,
-                    'principal' => (bool) $w->principal,
-                    'stockNegativo' => (bool) $w->stock_negativo,
-                    'manejaSeries' => (bool) $w->maneja_series,
-                    'manejaLotes' => (bool) $w->maneja_lotes,
+                    'principal' => (bool)$w->principal,
+                    'stockNegativo' => (bool)$w->stock_negativo,
+                    'manejaSeries' => (bool)$w->maneja_series,
+                    'manejaLotes' => (bool)$w->maneja_lotes,
                     'codigoBarras' => $w->codigo_barras,
-                    'activo' => (bool) $w->activo,
+                    'activo' => (bool)$w->activo,
                 ];
             })->values(),
-
             'cajaBancos' => [
                 'cajas' => $cashboxes->map(function ($c) {
                     return [
                         'nombre' => $c->nombre,
                         'moneda' => $c->moneda,
-                        'porDefecto' => (bool) $c->por_defecto,
-                        'manejaCheques' => (bool) $c->maneja_cheques,
-                        'liquidacionDiaria' => (bool) $c->liquidacion_diaria,
-                        'flujoAutomatico' => (bool) $c->flujo_automatico,
+                        'porDefecto' => (bool)$c->por_defecto,
+                        'manejaCheques' => (bool)$c->maneja_cheques,
+                        'liquidacionDiaria' => (bool)$c->liquidacion_diaria,
+                        'flujoAutomatico' => (bool)$c->flujo_automatico,
                     ];
                 })->values(),
-
                 'bancos' => $bankAccounts->map(function ($b) {
                     return [
                         'banco' => $b->banco,
                         'numero' => $b->numero,
                         'moneda' => $b->moneda,
-                        'esPrincipal' => (bool) $b->es_principal,
-                        'manejaCheques' => (bool) $b->maneja_cheques,
+                        'esPrincipal' => (bool)$b->es_principal,
+                        'manejaCheques' => (bool)$b->maneja_cheques,
                     ];
                 })->values(),
             ],
-
             'contabilidad' => [
                 'planContable' => $accounting->plan_contable,
                 'cuentaVentas' => $accounting->cuenta_ventas,
@@ -200,11 +186,10 @@ class CompanySettingsController extends Controller
                 'cuentaIgv' => $accounting->cuenta_igv,
                 'cuentaCaja' => $accounting->cuenta_caja,
                 'cuentaBancos' => $accounting->cuenta_bancos,
-                'contabilizacionAutomatica' => (bool) $accounting->contabilizacion_automatica,
-                'centrosCostoObligatorios' => (bool) $accounting->centros_costo_obligatorios,
+                'contabilizacionAutomatica' => (bool)$accounting->contabilizacion_automatica,
+                'centrosCostoObligatorios' => (bool)$accounting->centros_costo_obligatorios,
                 'periodos' => $accounting->periodos ?? [],
             ],
-
             'seguridad' => [
                 'roles' => $user->roles->map(fn ($r) => ['nombre' => $r->name]),
                 'privilegios' => [
@@ -213,7 +198,6 @@ class CompanySettingsController extends Controller
                     'eliminaciones' => in_array('eliminar registros', $permissions),
                 ],
             ],
-
             'preferencias' => [
                 'idioma' => $preferences->idioma ?? 'es-PE',
                 'zonaHoraria' => $preferences->zona_horaria ?? 'America/Lima',
@@ -221,15 +205,13 @@ class CompanySettingsController extends Controller
                 'decimales' => $preferences->decimales ?? 2,
                 'alertas' => $preferences->alertas ?? [],
             ],
-
             'integraciones' => $integrations->map(function ($i) {
                 return [
                     'tipo' => $i->tipo,
                     'params' => $i->params,
-                    'activo' => (bool) $i->activo,
+                    'activo' => (bool)$i->activo,
                 ];
             })->values(),
-
             'completion' => $completion,
             'canEdit' => $user->hasAnyRole(['admin', 'administrador']),
             'updatedAt' => $company->updated_at?->toDateTimeString(),
@@ -238,56 +220,47 @@ class CompanySettingsController extends Controller
 
     public function update(Request $request)
     {
-        $user = $request->user();
+        if (!Schema::hasTable('company_settings') || !Schema::hasTable('tax_settings')) {
+            return response()->json(['message' => 'Faltan migraciones de configuración de empresa. Ejecuta php artisan migrate.'], 500);
+        }
 
+        $user = $request->user();
         if (!$user->hasAnyRole(['admin', 'administrador'])) {
             return response()->json(['message' => 'Solo los administradores pueden editar'], 403);
         }
 
         $empresaId = $user->empresa_id;
-
         $rules = [
             'general.razonSocial' => ['required', 'string'],
             'general.ruc' => ['required', 'digits:11'],
             'general.direccionFiscal' => ['required', 'string'],
-
             'sunat.regimen' => ['required', 'string'],
             'sunat.afectacionIgv' => ['required', 'string'],
             'sunat.ambiente' => ['required', Rule::in(['PRUEBAS', 'PRODUCCION'])],
-
-            // ❌ Eliminado: sunat.codigoEstablecimiento
-
             'documentos.series' => ['required', 'array', 'min:1'],
             'documentos.series.*.tipo' => [Rule::in(['FACTURA', 'BOLETA', 'NC', 'ND', 'GUIA'])],
             'documentos.series.*.serie' => ['required', 'string'],
             'documentos.series.*.correlativoInicial' => ['required', 'integer', 'min:1'],
             'documentos.series.*.correlativoActual' => ['required', 'integer', 'min:1'],
-
             'monedas.monedaBase.code' => ['required', 'string', 'size:3'],
             'monedas.monedaBase.igvRate' => ['required', 'numeric', 'between:0,100'],
             'monedas.secundarias' => ['array'],
-
             'almacenes' => ['array'],
             'cajaBancos.cajas' => ['array'],
             'cajaBancos.bancos' => ['array'],
-
             'contabilidad.contabilizacionAutomatica' => ['boolean'],
             'contabilidad.centrosCostoObligatorios' => ['boolean'],
-
             'preferencias.idioma' => ['required', 'string'],
             'preferencias.zonaHoraria' => ['required', 'string'],
-
             'integraciones' => ['array'],
         ];
 
         $validator = Validator::make($request->all(), $rules);
-
         if ($validator->fails()) {
             return response()->json(['message' => 'Datos inválidos', 'errors' => $validator->errors()], 422);
         }
 
         $data = $validator->validated();
-
         $general = Arr::get($data, 'general', []);
         $sunat = Arr::get($data, 'sunat', []);
         $documentos = Arr::get($data, 'documentos.series', []);
@@ -298,14 +271,12 @@ class CompanySettingsController extends Controller
         $preferencias = Arr::get($data, 'preferencias', []);
         $integraciones = Arr::get($data, 'integraciones', []);
 
-        // ✅ Gate: no permitir PRODUCCION sin SOL + Certificado vigente
         $existingTax = TaxSetting::firstOrNew(['empresa_id' => $empresaId]);
         if (($sunat['ambiente'] ?? 'PRUEBAS') === 'PRODUCCION') {
-            if (!($existingTax->has_sol_credentials ?? false)) {
+            if (!$existingTax->has_sol_credentials) {
                 return response()->json(['message' => 'Configura credenciales SOL antes de pasar a producción'], 422);
             }
-            $certOk = ($existingTax->certificate_storage_key ?? null) && (($existingTax->certificate_status ?? 'EXPIRED') === 'ACTIVE');
-            if (!$certOk) {
+            if (!$existingTax->certificate_storage_key || ($existingTax->certificate_status ?? 'EXPIRED') !== 'ACTIVE') {
                 return response()->json(['message' => 'El certificado digital debe estar vigente antes de pasar a producción'], 422);
             }
         }
@@ -334,7 +305,6 @@ class CompanySettingsController extends Controller
                 'regimen' => $sunat['regimen'] ?? '',
                 'tipo_contribuyente' => $sunat['tipoContribuyente'] ?? null,
                 'afectacion_igv' => $sunat['afectacionIgv'] ?? '',
-                // ❌ Eliminado: codigo_establecimiento
                 'certificado_url' => $sunat['certificadoUrl'] ?? null,
                 'certificado_estado' => $sunat['certificadoEstado'] ?? null,
                 'certificado_vigencia_desde' => $sunat['certificadoVigenciaDesde'] ?? null,
@@ -385,7 +355,7 @@ class CompanySettingsController extends Controller
                 'name' => $currency['name'] ?? $currency['code'],
                 'is_base' => false,
                 'precios_incluyen_igv' => $currency['preciosIncluyenIgv'] ?? false,
-                'igv_rate' => $currency['igvRate'] ?? ($base['igvRate'] ?? 18),
+                'igv_rate' => $currency['igvRate'] ?? $base['igvRate'] ?? 18,
                 'redondeo' => $currency['redondeo'] ?? false,
                 'tipo_cambio_automatico' => $currency['tipoCambioAutomatico'] ?? false,
                 'updated_by' => $user->id,
@@ -394,10 +364,7 @@ class CompanySettingsController extends Controller
 
         $exchangeRates = Arr::get($monedas, 'exchangeRates', []);
         foreach ($exchangeRates as $rate) {
-            $target = ($rate['currencyCode'] === $base['code'])
-                ? $createdBase
-                : $secondaryModels->firstWhere('code', $rate['currencyCode']);
-
+            $target = $rate['currencyCode'] === $base['code'] ? $createdBase : $secondaryModels->firstWhere('code', $rate['currencyCode']);
             if ($target) {
                 ExchangeRate::create([
                     'currency_id' => $target->id,
@@ -487,7 +454,6 @@ class CompanySettingsController extends Controller
                 $decoded = json_decode($params, true);
                 $params = $decoded ?? ['value' => $params];
             }
-
             Integration::create([
                 'empresa_id' => $empresaId,
                 'tipo' => $integration['tipo'],

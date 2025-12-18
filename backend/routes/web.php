@@ -24,10 +24,8 @@ use App\Http\Controllers\Api\Facturacion\ComprobanteController;
 use App\Http\Controllers\Api\Facturacion\ComprobanteDetalleController;
 use App\Http\Controllers\Api\Facturacion\GuiaRemisionController;
 use App\Http\Controllers\Api\Facturacion\SerieController;
-
 use App\Http\Controllers\Api\CompanySettingsController;
 use App\Http\Controllers\Api\SunatSettingsController;
-
 use App\Http\Controllers\Api\Inventario\AjusteInventarioController;
 use App\Http\Controllers\Api\Inventario\AlmacenController;
 use App\Http\Controllers\Api\Inventario\AlmacenProductoController;
