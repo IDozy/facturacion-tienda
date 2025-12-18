@@ -13,6 +13,7 @@ import {
     TrendingUp,
     TrendingDown,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import {
     getConfiguracionPorEmpresa,  // ✅ Cambiado
     saveConfiguracionEmpresa,     // ✅ Nuevo
@@ -143,8 +144,7 @@ export default function ConfiguracionEmpresaForm() {
     };
 
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const ejecutarGuardado = async () => {
         if (!validateForm() || !empresaId) return;
 
         setSaving(true);
@@ -157,22 +157,29 @@ export default function ConfiguracionEmpresaForm() {
                 empresa_id: empresaId,
             };
 
-            // ✅ Usar la nueva función que maneja crear/actualizar automáticamente
             const configActualizada = await saveConfiguracionEmpresa(dataToSend);
 
             setConfiguracion(configActualizada);
             setFormData(configActualizada);
 
             setShowSuccess(true);
-            setTimeout(() => setShowSuccess(false), 3000);
+            toast.success("Configuración guardada");
+            setTimeout(() => setShowSuccess(false), 2000);
         } catch (error: any) {
             console.error("Error al guardar la configuración:", error);
+            const message = error?.response?.data?.message || "Error al guardar los cambios";
             setErrors({
-                submit: error.response?.data?.message || "Error al guardar los cambios",
+                submit: message,
             });
+            toast.error(message);
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        await ejecutarGuardado();
     };
 
     if (loading) {
@@ -413,7 +420,8 @@ export default function ConfiguracionEmpresaForm() {
                                 <span className="text-red-500">*</span> Campos obligatorios
                             </p>
                             <button
-                                type="submit"
+                                type="button"
+                                onClick={ejecutarGuardado}
                                 disabled={saving}
                                 className="group relative px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-sm hover:from-blue-700 hover:to-blue-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center gap-2"
                             >
@@ -506,6 +514,17 @@ export default function ConfiguracionEmpresaForm() {
                                 <p className="text-sm text-slate-900">
                                     {formData.moneda_default || "PEN"} {configuracion.tolerancia_cuadratura || 1}
                                 </p>
+                            </div>
+                            <div className="pt-2 border-t border-slate-200 flex justify-end">
+                                <button
+                                    type="button"
+                                    onClick={ejecutarGuardado}
+                                    disabled={saving}
+                                    className="inline-flex items-center gap-2 rounded-sm bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                                >
+                                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                    Guardar
+                                </button>
                             </div>
                         </div>
                     </div>

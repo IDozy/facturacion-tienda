@@ -19,6 +19,8 @@ use App\Http\Controllers\Api\Facturacion\ComprobanteController;
 use App\Http\Controllers\Api\Facturacion\ComprobanteDetalleController;
 use App\Http\Controllers\Api\Facturacion\GuiaRemisionController;
 use App\Http\Controllers\Api\Facturacion\SerieController;
+use App\Http\Controllers\Api\CompanySettingsController;
+use App\Http\Controllers\Api\SunatSettingsController;
 use App\Http\Controllers\Api\Inventario\AjusteInventarioController;
 use App\Http\Controllers\Api\Inventario\AlmacenController;
 use App\Http\Controllers\Api\Inventario\AlmacenProductoController;
@@ -206,6 +208,14 @@ Route::prefix('api')->middleware(['auth:sanctum'])->group(function () {
     Route::post('configuraciones-empresa/{configuracionEmpresa}/restablecer-defecto', [ConfiguracionEmpresaController::class, 'restablecerDefecto']);
     Route::get('monedas-disponibles', [ConfiguracionEmpresaController::class, 'monedasDisponibles']);
     Route::put('configuracion-empresa/{id}', [ConfiguracionEmpresaController::class, 'update']);
+
+    // Configuración integral de empresa
+    Route::get('company-settings/me', [CompanySettingsController::class, 'show']);
+    Route::put('company-settings/me', [CompanySettingsController::class, 'update']);
+    Route::get('company/sunat/status', [SunatSettingsController::class, 'status']);
+    Route::post('company/sunat/credentials', [SunatSettingsController::class, 'saveCredentials']);
+    Route::post('company/sunat/certificate', [SunatSettingsController::class, 'uploadCertificate']);
+    Route::post('company/sunat/test', [SunatSettingsController::class, 'test']);
 
     // Configuraciones
     Route::apiResource('configuraciones', ConfiguracionController::class);
