@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { authService } from '../services/auth';
 import { Toaster } from 'react-hot-toast';
+import { Toaster as SonnerToaster } from '../lib/sonner';
 
 
 
@@ -378,6 +379,7 @@ export default function Layout({ children }: LayoutProps) {
         <div className="p-4- md:p-8">{children}</div>
       </main>
       <Toaster position="top-right" toastOptions={{ duration: 3500 }} />
+      <SonnerToaster position="top-right" />
     </div>
   );
 }
