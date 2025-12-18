@@ -12,14 +12,30 @@ return new class extends Migration
             if (Schema::hasColumn('tax_settings', 'codigo_establecimiento')) {
                 $table->dropColumn('codigo_establecimiento');
             }
-            $table->string('sunat_user_encrypted')->nullable();
-            $table->string('sunat_password_encrypted')->nullable();
-            $table->boolean('has_sol_credentials')->default(false);
-            $table->string('certificate_storage_key')->nullable();
-            $table->string('certificate_password_encrypted')->nullable();
-            $table->date('certificate_valid_from')->nullable();
-            $table->date('certificate_valid_until')->nullable();
-            $table->enum('certificate_status', ['ACTIVE', 'EXPIRED', 'REVOKED'])->nullable();
+            if (!Schema::hasColumn('tax_settings', 'sunat_user_encrypted')) {
+                $table->string('sunat_user_encrypted')->nullable();
+            }
+            if (!Schema::hasColumn('tax_settings', 'sunat_password_encrypted')) {
+                $table->string('sunat_password_encrypted')->nullable();
+            }
+            if (!Schema::hasColumn('tax_settings', 'has_sol_credentials')) {
+                $table->boolean('has_sol_credentials')->default(false);
+            }
+            if (!Schema::hasColumn('tax_settings', 'certificate_storage_key')) {
+                $table->string('certificate_storage_key')->nullable();
+            }
+            if (!Schema::hasColumn('tax_settings', 'certificate_password_encrypted')) {
+                $table->string('certificate_password_encrypted')->nullable();
+            }
+            if (!Schema::hasColumn('tax_settings', 'certificate_valid_from')) {
+                $table->date('certificate_valid_from')->nullable();
+            }
+            if (!Schema::hasColumn('tax_settings', 'certificate_valid_until')) {
+                $table->date('certificate_valid_until')->nullable();
+            }
+            if (!Schema::hasColumn('tax_settings', 'certificate_status')) {
+                $table->enum('certificate_status', ['ACTIVE', 'EXPIRED', 'REVOKED'])->nullable();
+            }
         });
     }
 
