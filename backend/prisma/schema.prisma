@@ -1,0 +1,231 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id                 Int     @id @default(autoincrement())
+  empresaId          Int      @map("empresa_id")
+  razonSocial        String   @map("razon_social")
+  nombreComercial    String?  @map("nombre_comercial")
+  ruc                String
+  direccionFiscal    String   @map("direccion_fiscal")
+  direccionComercial String?  @map("direccion_comercial")
+  telefono           String?
+  email              String?
+  logoUrl            String?  @map("logo_url")
+  region             String?
+  ciudad             String?
+  pais               String?
+  updatedBy          Int?     @map("updated_by")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("company_settings")
+}
+
+model TaxSettings {
+  id                         Int      @id @default(autoincrement())
+  empresaId                  Int      @map("empresa_id")
+  regimen                    String
+  tipoContribuyente          String?  @map("tipo_contribuyente")
+  afectacionIgv              String   @map("afectacion_igv")
+  certificadoUrl             String?  @map("certificado_url")
+  certificadoEstado          String?  @map("certificado_estado")
+  certificadoVigenciaDesde   DateTime? @map("certificado_vigencia_desde")
+  certificadoVigenciaHasta   DateTime? @map("certificado_vigencia_hasta")
+  ambiente                   String   @default("PRUEBAS")
+  sunatUserEncrypted         String?  @map("sunat_user_encrypted")
+  sunatPasswordEncrypted     String?  @map("sunat_password_encrypted")
+  hasSolCredentials          Boolean  @default(false) @map("has_sol_credentials")
+  certificateStorageKey      String?  @map("certificate_storage_key")
+  certificatePasswordEncrypted String? @map("certificate_password_encrypted")
+  certificateValidFrom       DateTime? @map("certificate_valid_from")
+  certificateValidUntil      DateTime? @map("certificate_valid_until")
+  certificateStatus          String?  @map("certificate_status")
+  updatedBy                  Int?     @map("updated_by")
+  createdAt                  DateTime @default(now()) @map("created_at")
+  updatedAt                  DateTime @updatedAt @map("updated_at")
+
+  @@map("tax_settings")
+}
+
+model DocumentSeries {
+  id                  Int      @id @default(autoincrement())
+  empresaId           Int      @map("empresa_id")
+  tipo                String
+  serie               String
+  correlativoInicial  Int      @map("correlativo_inicial")
+  correlativoActual   Int      @map("correlativo_actual")
+  automatico          Boolean  @default(true)
+  activo              Boolean  @default(true)
+  updatedBy           Int?     @map("updated_by")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@map("document_series")
+}
+
+model Currency {
+  id                    Int      @id @default(autoincrement())
+  empresaId             Int      @map("empresa_id")
+  code                  String
+  name                  String
+  isBase                Boolean  @default(false) @map("is_base")
+  preciosIncluyenIgv    Boolean  @default(true) @map("precios_incluyen_igv")
+  igvRate               Float    @default(18) @map("igv_rate")
+  redondeo              Boolean  @default(false)
+  tipoCambioAutomatico  Boolean  @default(false) @map("tipo_cambio_automatico")
+  updatedBy             Int?     @map("updated_by")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+  exchangeRates         ExchangeRate[]
+
+  @@map("currencies")
+}
+
+model ExchangeRate {
+  id         Int      @id @default(autoincrement())
+  currencyId Int      @map("currency_id")
+  fecha      DateTime
+  compra     Float?
+  venta      Float?
+  fuente     String?
+  automatico Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  currency   Currency @relation(fields: [currencyId], references: [id])
+
+  @@unique([currencyId, fecha])
+  @@map("exchange_rates")
+}
+
+model Warehouse {
+  id             Int      @id @default(autoincrement())
+  empresaId      Int      @map("empresa_id")
+  nombre         String
+  principal      Boolean  @default(false)
+  stockNegativo  Boolean  @default(false) @map("stock_negativo")
+  manejaSeries   Boolean  @default(false) @map("maneja_series")
+  manejaLotes    Boolean  @default(false) @map("maneja_lotes")
+  codigoBarras   String?  @map("codigo_barras")
+  activo         Boolean  @default(true)
+  updatedBy      Int?     @map("updated_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("warehouses")
+}
+
+model Cashbox {
+  id               Int      @id @default(autoincrement())
+  empresaId        Int      @map("empresa_id")
+  nombre           String
+  moneda           String
+  porDefecto       Boolean  @default(false) @map("por_defecto")
+  manejaCheques    Boolean  @default(false) @map("maneja_cheques")
+  liquidacionDiaria Boolean @default(false) @map("liquidacion_diaria")
+  flujoAutomatico  Boolean  @default(false) @map("flujo_automatico")
+  updatedBy        Int?     @map("updated_by")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("cashboxes")
+}
+
+model BankAccount {
+  id            Int      @id @default(autoincrement())
+  empresaId     Int      @map("empresa_id")
+  banco         String
+  numero        String
+  moneda        String
+  esPrincipal   Boolean  @default(false) @map("es_principal")
+  manejaCheques Boolean  @default(false) @map("maneja_cheques")
+  updatedBy     Int?     @map("updated_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("bank_accounts")
+}
+
+model AccountingSettings {
+  id                         Int      @id @default(autoincrement())
+  empresaId                  Int      @map("empresa_id")
+  planContable               String?  @map("plan_contable")
+  cuentaVentas               String?  @map("cuenta_ventas")
+  cuentaCompras              String?  @map("cuenta_compras")
+  cuentaIgv                  String?  @map("cuenta_igv")
+  cuentaCaja                 String?  @map("cuenta_caja")
+  cuentaBancos               String?  @map("cuenta_bancos")
+  contabilizacionAutomatica  Boolean  @default(false) @map("contabilizacion_automatica")
+  centrosCostoObligatorios   Boolean  @default(false) @map("centros_costo_obligatorios")
+  periodos                   Json?
+  updatedBy                  Int?     @map("updated_by")
+  createdAt                  DateTime @default(now()) @map("created_at")
+  updatedAt                  DateTime @updatedAt @map("updated_at")
+
+  @@map("accounting_settings")
+}
+
+model SystemPreferences {
+  id           Int      @id @default(autoincrement())
+  empresaId    Int      @map("empresa_id")
+  idioma       String
+  zonaHoraria  String   @map("zona_horaria")
+  formatoFecha String   @map("formato_fecha")
+  decimales    Int
+  alertas      Json?
+  preferencias Json?
+  updatedBy    Int?     @map("updated_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("system_preferences")
+}
+
+model Integration {
+  id        Int      @id @default(autoincrement())
+  empresaId Int      @map("empresa_id")
+  tipo      String
+  params    Json?
+  activo    Boolean  @default(true)
+  updatedBy Int?     @map("updated_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("integrations")
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  empresaId Int      @map("empresa_id")
+  userId    Int      @map("user_id")
+  action    String
+  module    String
+  payload   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("audit_logs")
+}
+
+model Role {
+  id        Int      @id @default(autoincrement())
+  name      String
+  guardName String   @map("guard_name")
+
+  @@map("roles")
+}
+
+model Permission {
+  id        Int      @id @default(autoincrement())
+  name      String
+  guardName String   @map("guard_name")
+
+  @@map("permissions")
+}
