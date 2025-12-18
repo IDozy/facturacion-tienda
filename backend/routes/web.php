@@ -3,24 +3,31 @@
 use App\Http\Controllers\Api\AuditoriaController;
 use App\Http\Controllers\Api\CajaController;
 use App\Http\Controllers\Api\ClienteController;
+
 use App\Http\Controllers\Api\Compras\CompraController;
 use App\Http\Controllers\Api\Compras\CompraDetalleController;
 use App\Http\Controllers\Api\Compras\ProveedorController;
+
 use App\Http\Controllers\Api\ConfiguracionController;
 use App\Http\Controllers\Api\ConfiguracionEmpresaController;
+
 use App\Http\Controllers\Api\Contabilidad\AsientoController;
 use App\Http\Controllers\Api\Contabilidad\AsientoDetalleController;
 use App\Http\Controllers\Api\Contabilidad\DiarioController;
 use App\Http\Controllers\Api\Contabilidad\PeriodoContableController;
 use App\Http\Controllers\Api\Contabilidad\PlanCuentaController;
+
 use App\Http\Controllers\Api\EmpresaController;
 use App\Http\Controllers\Api\EmpresaMeController;
+
 use App\Http\Controllers\Api\Facturacion\ComprobanteController;
 use App\Http\Controllers\Api\Facturacion\ComprobanteDetalleController;
 use App\Http\Controllers\Api\Facturacion\GuiaRemisionController;
 use App\Http\Controllers\Api\Facturacion\SerieController;
+
 use App\Http\Controllers\Api\CompanySettingsController;
 use App\Http\Controllers\Api\SunatSettingsController;
+
 use App\Http\Controllers\Api\Inventario\AjusteInventarioController;
 use App\Http\Controllers\Api\Inventario\AlmacenController;
 use App\Http\Controllers\Api\Inventario\AlmacenProductoController;
@@ -28,6 +35,7 @@ use App\Http\Controllers\Api\Inventario\CategoriaController;
 use App\Http\Controllers\Api\Inventario\MovimientoStockController;
 use App\Http\Controllers\Api\Inventario\ProductoController;
 use App\Http\Controllers\Api\Inventario\TransferenciaStockController;
+
 use App\Http\Controllers\Api\LibroElectronicoController;
 use App\Http\Controllers\Api\MedioPagoController;
 use App\Http\Controllers\Api\PagoController;
@@ -36,10 +44,13 @@ use App\Http\Controllers\Api\RetencionController;
 use App\Http\Controllers\Api\RolController;
 use App\Http\Controllers\Api\TablaSunatController;
 use App\Http\Controllers\Api\UserController;
-use Illuminate\Support\Facades\Route;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
+
 use App\Models\User;
+
 
 /*
 |--------------------------------------------------------------------------
